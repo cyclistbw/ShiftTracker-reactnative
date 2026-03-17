@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Pressable, Text, ActivityIndicator } from "react-native";
+import { Pressable, Text, ActivityIndicator, ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps {
@@ -11,6 +11,7 @@ export interface ButtonProps {
   loading?: boolean;
   onPress?: () => void;
   children?: React.ReactNode;
+  style?: ViewStyle;
 }
 
 const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
@@ -54,6 +55,7 @@ export function Button({
   loading,
   onPress,
   children,
+  style,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -61,6 +63,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      style={style}
       className={cn(
         "flex-row items-center justify-center rounded-md",
         variantClasses[variant],

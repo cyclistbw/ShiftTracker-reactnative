@@ -1,4 +1,5 @@
 // 🚩 FLAG: <div>/<span> → <View>/<Text>; onClick → onPress; grid → flex-row flex-wrap
+import React from "react";
 import { View, Text } from "react-native";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { DatabaseExpense } from "@/lib/expense-storage";
 import IndividualShiftCard from "./IndividualShiftCard";
 import { useContentMode } from "@/context/ContentModeContext";
 import { formatCurrencyWithContentMode } from "@/utils/analytics-utils";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 
 interface DayShiftGroup {
   date: Date;
@@ -22,6 +24,7 @@ interface DayShiftGroup {
 
 interface ShiftDayGroupProps {
   dayGroup: DayShiftGroup;
+  expanded: boolean;
   onToggleExpansion: () => void;
   databaseExpenses: Record<string, DatabaseExpense[]>;
   onEditShift: (shift: Shift) => void;
@@ -38,6 +41,7 @@ interface ShiftDayGroupProps {
 
 const ShiftDayGroup = ({
   dayGroup,
+  expanded,
   onToggleExpansion,
   databaseExpenses,
   onEditShift,
@@ -52,6 +56,8 @@ const ShiftDayGroup = ({
   deletingExpense,
 }: ShiftDayGroupProps) => {
   const { isContentModeEnabled } = useContentMode();
+  const { isDark } = useTheme();
+  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   const formatCurrency = (amount: number) => formatCurrencyWithContentMode(amount, isContentModeEnabled);
   const formatDuration = (hours: number) => {
     const h = Math.floor(hours);
@@ -82,7 +88,7 @@ const ShiftDayGroup = ({
 
   return (
     <Card className="overflow-hidden mb-3">
-      <CardHeader className="pb-2 bg-gray-50">
+      <CardHeader className="pb-2" style={{ backgroundColor: themeColors.muted }}>
         <View className="flex-row justify-between items-center">
           <View className="flex-row items-center gap-2">
             <CardTitle>{format(dayGroup.date, "EEE, MMM d, yyyy")}</CardTitle>
@@ -93,7 +99,7 @@ const ShiftDayGroup = ({
             )}
           </View>
           <Button variant="ghost" size="icon" className="h-8 w-8" onPress={onToggleExpansion}>
-            {dayGroup.expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </Button>
         </View>
       </CardHeader>
@@ -121,12 +127,12 @@ const ShiftDayGroup = ({
 
         {/* Time period tags for multi-shift days */}
         {dayGroup.shifts.length > 1 && (
-          <View className="mt-3 pt-3 border-t border-dashed border-gray-200 flex-row flex-wrap gap-1">
+          <View className="mt-3 pt-3 border-t border-dashed border-border flex-row flex-wrap gap-1">
             {dayGroup.shifts.map((shift, i) => {
               const src = getSourceLabel(shift.id);
               return (
-                <View key={`time-${i}`} className="bg-gray-100 px-2 py-1 rounded flex-row items-center gap-1">
-                  <Text className="text-xs">
+                <View key={`time-${i}`} className="bg-muted px-2 py-1 rounded flex-row items-center gap-1">
+                  <Text className="text-xs text-muted-foreground">
                     {format(shift.startTime, "HH:mm")}
                     {shift.endTime ? ` - ${format(shift.endTime, "HH:mm")}` : ""}
                   </Text>
@@ -142,7 +148,7 @@ const ShiftDayGroup = ({
         )}
 
         {/* Expanded individual shifts */}
-        {dayGroup.expanded && (
+        {expanded && (
           <View className="mt-3 pt-3 border-t">
             {dayGroup.shifts.map((shift) => (
               <IndividualShiftCard
@@ -179,4 +185,4 @@ function StatRow({ label, value, valueColor }: { label: string; value: string; v
   );
 }
 
-export default ShiftDayGroup;
+export default React.memo(ShiftDayGroup);

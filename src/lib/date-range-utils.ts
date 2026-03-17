@@ -11,7 +11,7 @@ import {
   format
 } from "date-fns";
 
-type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "year" | "dateRange";
+type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
 export const getDateRangeForPeriod = (timePeriod: TimePeriod, customStartDate?: Date, customEndDate?: Date): string => {
   const now = new Date();
@@ -43,6 +43,10 @@ export const getDateRangeForPeriod = (timePeriod: TimePeriod, customStartDate?: 
     case "ytd": {
       const startOfThisYear = startOfYear(now);
       return `${format(startOfThisYear, "MMM d")} - ${format(now, "MMM d")}`;
+    }
+    case "prevYear": {
+      const prevYear = subYears(now, 1);
+      return `${format(startOfYear(prevYear), "MMM d, yyyy")} - ${format(endOfYear(prevYear), "MMM d, yyyy")}`;
     }
     case "year": {
       const oneYearAgo = subYears(now, 1);

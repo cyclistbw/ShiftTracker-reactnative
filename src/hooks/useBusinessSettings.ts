@@ -16,7 +16,6 @@ export interface BusinessSettings {
   gigPlatforms: string[];
   timezone: string;
   clockFormat: '12-hour' | '24-hour';
-  enableWellnessCheckin: boolean;
   darkModePreference: 'light' | 'dark' | 'system';
 }
 
@@ -38,7 +37,6 @@ export const useBusinessSettings = () => {
     gigPlatforms: [],
     timezone: "America/New_York",
     clockFormat: "12-hour",
-    enableWellnessCheckin: false,
     darkModePreference: "system",
   };
 
@@ -79,7 +77,6 @@ export const useBusinessSettings = () => {
           gigPlatforms: Array.isArray(data.gig_platforms) ? data.gig_platforms : [],
           timezone: data.timezone || "America/New_York",
           clockFormat: (data.clock_format as '12-hour' | '24-hour') || "12-hour",
-          enableWellnessCheckin: data.enable_wellness_checkin || false,
           darkModePreference: (data.dark_mode_preference as 'light' | 'dark' | 'system') || "system",
         });
       } else {
@@ -115,7 +112,6 @@ export const useBusinessSettings = () => {
         gig_platforms: Array.isArray(newSettings.gigPlatforms) ? newSettings.gigPlatforms : [],
         timezone: newSettings.timezone,
         clock_format: newSettings.clockFormat,
-        enable_wellness_checkin: newSettings.enableWellnessCheckin,
         dark_mode_preference: newSettings.darkModePreference,
       };
 

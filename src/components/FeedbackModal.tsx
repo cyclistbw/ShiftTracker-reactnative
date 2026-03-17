@@ -94,17 +94,17 @@ const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
           <DialogTitle>Share Your Feedback</DialogTitle>
         </DialogHeader>
 
-        <View className="space-y-4">
+        <View>
           {/* Type */}
-          <View className="space-y-1">
-            <Label>Feedback Type</Label>
+          <View style={{ marginBottom: 20 }}>
+            <Label style={{ marginBottom: 6 }}>Feedback Type</Label>
             <Controller
               control={control}
               name="type"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value || undefined} onValueChange={field.onChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select feedback type" />
+                    <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="bug">Bug Report</SelectItem>
@@ -117,13 +117,13 @@ const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
               )}
             />
             {errors.type && (
-              <Text className="text-xs text-destructive">{errors.type.message}</Text>
+              <Text className="text-xs text-destructive" style={{ marginTop: 4 }}>{errors.type.message}</Text>
             )}
           </View>
 
           {/* Content */}
-          <View className="space-y-1">
-            <Label>Your Feedback</Label>
+          <View style={{ marginBottom: 20 }}>
+            <Label style={{ marginBottom: 6 }}>Your Feedback</Label>
             <Controller
               control={control}
               name="content"
@@ -137,13 +137,13 @@ const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
               )}
             />
             {errors.content && (
-              <Text className="text-xs text-destructive">{errors.content.message}</Text>
+              <Text className="text-xs text-destructive" style={{ marginTop: 4 }}>{errors.content.message}</Text>
             )}
           </View>
 
           {/* Email */}
-          <View className="space-y-1">
-            <Label>Email (Optional)</Label>
+          <View style={{ marginBottom: 20 }}>
+            <Label style={{ marginBottom: 6 }}>Email (Optional)</Label>
             <Controller
               control={control}
               name="email"
@@ -158,11 +158,11 @@ const FeedbackModal = ({ isOpen, onClose }: FeedbackModalProps) => {
               )}
             />
             {errors.email && (
-              <Text className="text-xs text-destructive">{errors.email.message}</Text>
+              <Text className="text-xs text-destructive" style={{ marginTop: 4 }}>{errors.email.message}</Text>
             )}
           </View>
 
-          <View className="flex-row justify-end gap-2 pt-4">
+          <View className="flex-row justify-end gap-2" style={{ marginTop: 4 }}>
             <Button variant="outline" onPress={onClose}>Cancel</Button>
             <Button
               onPress={handleSubmit(onSubmit)}

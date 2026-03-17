@@ -8,25 +8,42 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Match web app's lime-600 primary colour
+        // All semantic tokens reference CSS custom properties set by ThemeContext's
+        // ThemeProvider via nativewind vars(). Light/dark values live in ThemeContext.tsx.
+        // NativeWind resolves these at runtime from VariableContext, enabling instant
+        // theme switching without touching individual components.
         primary: {
-          DEFAULT: "#65a30d", // lime-600
-          foreground: "#ffffff",
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
         },
-        background: "#f9fafb", // gray-50
-        foreground: "#111827",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
         muted: {
-          DEFAULT: "#f3f4f6",
-          foreground: "#6b7280",
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
         },
-        border: "#e5e7eb",
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
         card: {
-          DEFAULT: "#ffffff",
-          foreground: "#111827",
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)",
+        },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
         },
         destructive: {
-          DEFAULT: "#ef4444",
-          foreground: "#ffffff",
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
         },
       },
     },

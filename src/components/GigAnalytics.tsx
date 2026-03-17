@@ -192,7 +192,7 @@ const GigAnalytics: React.FC<GigAnalyticsProps> = ({ initialYear }) => {
     analytics?.currentWeekShifts && analytics.currentWeekShifts.length > 0;
 
   return (
-    <View className="space-y-4">
+    <View className="gap-4">
       {/* Header row */}
       <View className="flex-row justify-between items-center flex-wrap gap-3">
         <View className="flex-row items-center gap-3 flex-wrap">
@@ -239,7 +239,7 @@ const GigAnalytics: React.FC<GigAnalyticsProps> = ({ initialYear }) => {
           <Text className="mt-2 text-foreground">Loading analytics for {user.email}...</Text>
         </View>
       ) : analytics ? (
-        <View className="space-y-4">
+        <View className="gap-4">
           <DailySnapshot
             shiftStats={shiftStats}
             earningsGoal={earningsGoal}
@@ -281,7 +281,7 @@ const GigAnalytics: React.FC<GigAnalyticsProps> = ({ initialYear }) => {
       ) : null}
 
       {!analytics && !loading && (
-        <View className="space-y-4">
+        <View className="gap-4">
           <PlatformAnalytics selectedYear={selectedYear} refreshKey={refreshKey} />
           <LimeDynamicHeatmap key={`heatmap-standalone-${refreshKey}`} ref={heatmapRef} />
         </View>

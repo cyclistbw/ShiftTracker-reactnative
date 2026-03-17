@@ -28,11 +28,10 @@ export interface FeatureAccessResult {
 }
 
 const FEATURE_ACCESS: Record<SubscriptionTier, string[]> = {
-  free: ["shift_tracking", "mileage_tracking", "wellness_checkin", "trial_access"],
+  free: ["shift_tracking", "mileage_tracking", "trial_access"],
   basic: [
     "shift_tracking",
     "mileage_tracking",
-    "wellness_checkin",
     "tax_tools",
     "daily_snapshot",
     "weekly_snapshot",
@@ -55,7 +54,6 @@ const FEATURE_ACCESS: Record<SubscriptionTier, string[]> = {
     "shiftbuddy",
     "shift_history_90_days",
     "heatmap_data_90_day",
-    "wellness_checkin",
     "coaching",
     "custom_time_blocks",
   ],
@@ -80,7 +78,6 @@ const FEATURE_ACCESS: Record<SubscriptionTier, string[]> = {
     "export_data",
     "priority_support",
     "early_access_features",
-    "wellness_checkin",
     "shiftbuddy",
   ],
 };

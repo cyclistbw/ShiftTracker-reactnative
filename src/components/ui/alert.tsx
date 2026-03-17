@@ -1,6 +1,7 @@
 import * as React from "react";
 import { View, Text } from "react-native";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 export interface AlertProps {
   variant?: "default" | "destructive" | "warning";
@@ -11,17 +12,22 @@ export interface AlertProps {
 const variantClasses: Record<NonNullable<AlertProps["variant"]>, string> = {
   default: "border-border bg-background",
   destructive: "border-destructive/50 bg-destructive/10",
-  warning: "border-yellow-500/50 bg-yellow-50",
+  warning: "",
 };
 
 export function Alert({ variant = "default", className, children }: AlertProps) {
+  const { isDark } = useTheme();
+  const warningStyle = variant === "warning"
+    ? {
+        backgroundColor: isDark ? "#1c1409" : "#fefce8",
+        borderColor: isDark ? "#ca8a04" : "rgba(234,179,8,0.5)",
+      }
+    : undefined;
+
   return (
     <View
-      className={cn(
-        "w-full rounded-lg border p-4",
-        variantClasses[variant],
-        className
-      )}
+      className={cn("w-full rounded-lg border p-4", variantClasses[variant], className)}
+      style={warningStyle}
     >
       {children}
     </View>

@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Shift } from "@/types/shift";
 import { saveShifts, getShifts } from "@/lib/storage";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "expo-crypto";
 import { AlertTriangle, FileInput, Check } from "lucide-react-native";
 // 🚩 FLAG: expo-document-picker + expo-file-system replace <input type="file"> + file.text()
 import * as DocumentPicker from "expo-document-picker";
@@ -122,7 +122,7 @@ const DataImport = () => {
       const lastTask = dateTasks[dateTasks.length - 1];
       const totalEarnings = dateTasks.reduce((sum, task) => sum + task.earnings, 0);
       shifts.push({
-        id: uuidv4(),
+        id: randomUUID(),
         startTime: new Date(`${date}T${firstTask.startTime}`),
         endTime: new Date(`${date}T${lastTask.endTime}`),
         mileageStart: 0,

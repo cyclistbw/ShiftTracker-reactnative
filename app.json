@@ -18,8 +18,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.shifttracker.app",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.cyclistbw.shifttracker",
+      "buildNumber": "3",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -30,12 +30,16 @@
         "NSCameraUsageDescription": "Shift Tracker uses your camera to capture receipts and expense photos.",
         "NSPhotoLibraryUsageDescription": "Shift Tracker accesses your photo library to attach receipt images to expenses.",
         "NSUserNotificationUsageDescription": "Shift Tracker sends reminders about upcoming quarterly tax payment due dates.",
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 1,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -52,7 +56,10 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -93,9 +100,12 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "5c024701-d1c9-4b3f-b439-ce9d23785856"
       }
     },
-    "owner": "YOUR_EXPO_ACCOUNT_USERNAME"
+    "owner": "cyclistbw",
+    "updates": {
+      "url": "https://u.expo.dev/5c024701-d1c9-4b3f-b439-ce9d23785856"
+    }
   }
 }

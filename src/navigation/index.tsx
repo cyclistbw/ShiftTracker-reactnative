@@ -12,24 +12,48 @@
  *       (web: ProtectedRoute skipOnboardingCheck -> auth required, onboarding check skipped)
  *
  *  3. Authenticated + onboarding complete -> AppNavigator (AppStack)
- *       Tabs: Dashboard . History . ShiftBuddy . TaxReport . Settings
+ *       Tabs: Dashboard . History . TaxReport . Settings
  *       Modals: Analytics . MobileSubscription
  */
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View, StatusBar, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContainer } from "@react-navigation/native";
+import { ActivityIndicator, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Home, Clock, Brain, FileBarChart, Settings as SettingsIcon } from "lucide-react-native";
+import { Home, Clock, FileBarChart, Settings as SettingsIcon } from "lucide-react-native";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
+
+const NAV_LIGHT_THEME = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: THEME_COLORS.light.background,
+    card: THEME_COLORS.light.card,
+    text: THEME_COLORS.light.foreground,
+    border: THEME_COLORS.light.border,
+    primary: THEME_COLORS.light.primary,
+  },
+};
+
+const NAV_DARK_THEME = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: THEME_COLORS.dark.background,
+    card: THEME_COLORS.dark.card,
+    text: THEME_COLORS.dark.foreground,
+    border: THEME_COLORS.dark.border,
+    primary: THEME_COLORS.dark.primary,
+  },
+};
 import { supabase } from "@/integrations/supabase/client";
 import { isOnboardingConfirmed, setOnboardingConfirmed } from "@/lib/onboarding-state";
 import { linking } from "./linking";
 
 import DashboardScreen from "@/pages/Index";
 import HistoryScreen from "@/pages/History";
-import ShiftBuddyScreen from "@/pages/ShiftBuddy";
 import TaxReportScreen from "@/pages/TaxReport";
 import SettingsScreen from "@/pages/Settings";
 import LoginScreen from "@/pages/Login";
@@ -58,7 +82,6 @@ export type OnboardingStackParamList = {
 export type TabParamList = {
   Dashboard: undefined;
   History: undefined;
-  ShiftBuddy: undefined;
   TaxReport: undefined;
   Settings: undefined;
 };
@@ -78,34 +101,40 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 
 function TabNavigator() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   return (
-    <Tab.Navigator
-      id={undefined}
-      sceneContainerStyle={{ paddingTop: insets.top || (Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0) }}
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: "#65a30d",
-        tabBarInactiveTintColor: "#6b7280",
-        tabBarStyle: { height: 56 + insets.bottom, paddingBottom: insets.bottom },
-        tabBarLabelStyle: { fontSize: 11, marginBottom: 4 },
-        tabBarIcon: ({ color, size }) => {
-          const s = size - 2;
-          switch (route.name) {
-            case "Dashboard":  return <Home size={s} color={color} />;
-            case "History":    return <Clock size={s} color={color} />;
-            case "ShiftBuddy": return <Brain size={s} color={color} />;
-            case "TaxReport":  return <FileBarChart size={s} color={color} />;
-            case "Settings":   return <SettingsIcon size={s} color={color} />;
-          }
-        },
-      })}
-    >
-      <Tab.Screen name="Dashboard"  component={DashboardScreen}  options={{ title: "Dashboard" }} />
-      <Tab.Screen name="History"    component={HistoryScreen}    options={{ title: "History" }} />
-      <Tab.Screen name="ShiftBuddy" component={ShiftBuddyScreen} options={{ title: "ShiftBuddy" }} />
-      <Tab.Screen name="TaxReport"  component={TaxReportScreen}  options={{ title: "Tax" }} />
-      <Tab.Screen name="Settings"   component={SettingsScreen}   options={{ title: "Settings" }} />
-    </Tab.Navigator>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
+      <Tab.Navigator
+        id={undefined}
+        sceneContainerStyle={{ flex: 1 }}
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarActiveTintColor: colors.tabBarActive,
+          tabBarInactiveTintColor: colors.tabBarInactive,
+          tabBarStyle: {
+            height: 56 + insets.bottom,
+            paddingBottom: insets.bottom,
+            backgroundColor: colors.tabBarBg,
+            borderTopColor: colors.tabBarBorder,
+          },
+          tabBarLabelStyle: { fontSize: 11, marginBottom: 4 },
+          tabBarIcon: ({ color, size }) => {
+            const s = size - 2;
+            switch (route.name) {
+              case "Dashboard":  return <Home size={s} color={color} />;
+              case "History":    return <Clock size={s} color={color} />;
+              case "TaxReport":  return <FileBarChart size={s} color={color} />;
+              case "Settings":   return <SettingsIcon size={s} color={color} />;
+            }
+          },
+        })}
+      >
+        <Tab.Screen name="Dashboard"  component={DashboardScreen}  options={{ title: "Dashboard" }} />
+        <Tab.Screen name="History"    component={HistoryScreen}    options={{ title: "History" }} />
+        <Tab.Screen name="TaxReport"  component={TaxReportScreen}  options={{ title: "Tax" }} />
+        <Tab.Screen name="Settings"   component={SettingsScreen}   options={{ title: "Settings" }} />
+      </Tab.Navigator>
+    </SafeAreaView>
   );
 }
 
@@ -161,11 +190,13 @@ type AppState = "loading" | "unauthenticated" | "onboarding" | "app";
 
 export default function RootNavigation() {
   const { user, isLoading } = useAuth();
+  const { isDark } = useTheme();
   const [appState, setAppState] = useState<AppState>("loading");
 
   useEffect(() => {
     if (isLoading) {
-      setAppState("loading");
+      // Don't disrupt navigation if already authenticated — token refresh changes user reference
+      setAppState(prev => prev === "app" ? prev : "loading");
       return;
     }
 
@@ -200,25 +231,27 @@ export default function RootNavigation() {
       }
     };
 
-    setAppState("loading");
+    // Stay in "app" state while re-checking so NavigationContainer never unmounts on token refresh
+    setAppState(prev => prev === "app" ? prev : "loading");
     checkOnboarding();
 
     return () => { cancelled = true; };
   }, [user, isLoading]);
 
-  if (appState === "loading") {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#65a30d" />
-      </View>
-    );
-  }
-
+  // Always render NavigationContainer — never let it unmount (prevents navigation context errors)
   return (
-    <NavigationContainer linking={linking}>
-      {appState === "unauthenticated" && <AuthNavigator />}
-      {appState === "onboarding"      && <OnboardingNavigator />}
-      {appState === "app"             && <AppNavigator />}
+    <NavigationContainer linking={linking} theme={isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME}>
+      {appState === "loading" ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color="#65a30d" />
+        </View>
+      ) : (
+        <>
+          {appState === "unauthenticated" && <AuthNavigator />}
+          {appState === "onboarding"      && <OnboardingNavigator />}
+          {appState === "app"             && <AppNavigator />}
+        </>
+      )}
     </NavigationContainer>
   );
 }

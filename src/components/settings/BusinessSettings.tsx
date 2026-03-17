@@ -157,7 +157,7 @@ const BusinessSettings = () => {
           <Text className="text-xl font-semibold text-foreground">Business Settings</Text>
         </View>
 
-        <View className="space-y-4">
+        <View className="gap-4">
           {/* Business Name */}
           <View>
             <Label className="mb-1">Business Name</Label>

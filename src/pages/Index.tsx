@@ -11,9 +11,10 @@
 // 🚩 FLAG: fixed inset-0 -> flex-1; bottom-20 datetime -> SafeAreaView positioning
 import { useState, useEffect } from "react";
 import {
-  View, Text, Modal, ScrollView, TouchableWithoutFeedback,
+  View, Text, Modal, ScrollView, Pressable,
   KeyboardAvoidingView, Platform, TextInput, ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -25,10 +26,10 @@ import { saveCurrentShift, getCurrentShift, getShifts, saveShifts } from "@/lib/
 import { syncShiftToSupabase } from "@/lib/supabase-functions";
 import { Shift, Expense } from "@/types/shift";
 import { useToast } from "@/hooks/use-toast";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "expo-crypto";
 import { Plus } from "lucide-react-native";
 import LocationTracker from "@/components/LocationTracker";
-import WellnessCheckIn from "@/components/WellnessCheckIn";
+import FloatingFeedbackButton from "@/components/FloatingFeedbackButton";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 import useLocationTracking from "@/hooks/useLocationTracking";
 import { emergencyStorageCleanup } from "@/lib/storage-cleanup";
@@ -36,6 +37,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 
 const Index = () => {
+  const insets = useSafeAreaInsets();
   const { settings: businessSettings, loading: businessSettingsLoading, saveSettings } = useBusinessSettings();
   const { getTotalDistanceMiles, tracking, locations, restoreTrackingIfNeeded } = useLocationTracking();
   const { canAccessFeature } = useSubscription();
@@ -53,9 +55,6 @@ const Index = () => {
   const [syncingShift, setSyncingShift] = useState(false);
   const [currentGpsMileage, setCurrentGpsMileage] = useState<number>(0);
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
-  const [wellnessCheckInOpen, setWellnessCheckInOpen] = useState(false);
-  const [pendingShiftData, setPendingShiftData] = useState<any>(null);
-
   const [startMileage, setStartMileage] = useState<string>("");
   const [endMileage, setEndMileage] = useState<string>("");
   const [income, setIncome] = useState<string>("");
@@ -130,23 +129,33 @@ const Index = () => {
   }, [currentShift, isPaused, pauseTime, totalPausedTime]);
 
   const handleStartShift = async () => {
+    console.log("handleStartShift called", { skipOdometer, isMileageOnly, startMileage });
     if (!skipOdometer && !isMileageOnly && (!startMileage || isNaN(parseFloat(startMileage)))) {
+      console.log("handleStartShift: validation failed");
       toast({ title: "Please enter your starting odometer reading", variant: "destructive" });
       return;
     }
+    console.log("handleStartShift: validation passed, creating shift");
     const newShift: Shift = {
-      id: uuidv4(), startTime: new Date(), endTime: null,
+      id: randomUUID(), startTime: new Date(), endTime: null,
       mileageStart: skipOdometer ? 0 : parseFloat(startMileage),
       mileageEnd: null, income: isMileageOnly ? 0 : null,
       expenses: [], isActive: true, locations: [],
       isPaused: false, totalPausedTime: 0, isMileageOnly
     };
-    setCurrentShift(newShift); setExpenses([]); setIsPaused(false);
-    setTotalPausedTime(0); setPauseTime(null);
-    await saveCurrentShift(newShift); setStartShiftDialogOpen(false); setIsMileageOnly(false);
-    const methodText = useGpsTracking ? " GPS tracking will calculate mileage automatically." : "";
-    toast({ title: (isMileageOnly ? "Mileage tracking started!" : "Shift started!") + methodText });
-    trackEvent("shift_start", "dashboard", { mileageOnly: isMileageOnly, gpsTracking: useGpsTracking });
+    try {
+      setCurrentShift(newShift); setExpenses([]); setIsPaused(false);
+      setTotalPausedTime(0); setPauseTime(null);
+      await saveCurrentShift(newShift);
+      console.log("handleStartShift: shift saved successfully");
+      setStartShiftDialogOpen(false); setIsMileageOnly(false);
+      const methodText = useGpsTracking ? " GPS tracking will calculate mileage automatically." : "";
+      toast({ title: (isMileageOnly ? "Mileage tracking started!" : "Shift started!") + methodText });
+      trackEvent("shift_start", "dashboard", { mileageOnly: isMileageOnly, gpsTracking: useGpsTracking });
+    } catch (err) {
+      console.error("handleStartShift: error", err);
+      toast({ title: "Failed to start shift. Please try again.", variant: "destructive" });
+    }
   };
 
   const handlePauseShift = async () => {
@@ -192,18 +201,11 @@ const Index = () => {
       tasksCompleted: currentShift.isMileageOnly ? 0 : (tasksCompleted ? parseInt(tasksCompleted) : 0),
       platform: selectedPlatforms.length > 0 ? selectedPlatforms.join(", ") : undefined,
       ...(currentShift.isMileageOnly && shiftNotes && { notes: shiftNotes }),
-      ...(!currentShift.isMileageOnly && pendingShiftData?.wellnessData && {
-        moodScore: pendingShiftData.wellnessData.moodScore,
-        energyLevel: pendingShiftData.wellnessData.energyLevel,
-        stressLevel: pendingShiftData.wellnessData.stressLevel,
-        wellnessNotes: pendingShiftData.wellnessData.wellnessNotes,
-        wellnessCheckedInAt: pendingShiftData.wellnessCheckedInAt
-      })
     };
     const shifts = await getShifts();
     await saveShifts([...shifts, completedShift]);
     setCurrentShift(null); await saveCurrentShift(null); setEndShiftDialogOpen(false);
-    setPendingShiftData(null); setIsPaused(false); setPauseTime(null);
+    setIsPaused(false); setPauseTime(null);
     setTotalPausedTime(0); setCurrentGpsMileage(0); setSelectedPlatforms([]);
     trackEvent("shift_end", "dashboard", { mileageOnly: completedShift.isMileageOnly });
     setSyncingShift(true);
@@ -223,7 +225,7 @@ const Index = () => {
     if (businessSettingsLoading) { toast({ title: "Loading settings, please wait...", variant: "destructive" }); return; }
     if (skipOdometer && !isMileageOnly) {
       const newShift: Shift = {
-        id: uuidv4(), startTime: new Date(), endTime: null, mileageStart: 0,
+        id: randomUUID(), startTime: new Date(), endTime: null, mileageStart: 0,
         mileageEnd: null, income: null, expenses: [], isActive: true,
         locations: [], isPaused: false, totalPausedTime: 0
       };
@@ -238,23 +240,6 @@ const Index = () => {
 
   const promptEndShift = () => {
     if (!currentShift) return;
-    if (!currentShift.isMileageOnly && businessSettings?.enableWellnessCheckin) {
-      setWellnessCheckInOpen(true);
-    } else {
-      setEndMileage(""); setIncome(""); setShiftNotes(""); setTasksCompleted("");
-      setSelectedPlatforms([]); setEndShiftDialogOpen(true);
-    }
-  };
-
-  const handleWellnessCheckIn = async (wellnessData: { moodScore: number; energyLevel: number; stressLevel: number; wellnessNotes: string }) => {
-    setPendingShiftData({ wellnessData, wellnessCheckedInAt: new Date().toISOString() });
-    setWellnessCheckInOpen(false);
-    setEndMileage(""); setIncome(""); setShiftNotes(""); setTasksCompleted("");
-    setSelectedPlatforms([]); setEndShiftDialogOpen(true);
-  };
-
-  const handleWellnessSkip = () => {
-    setPendingShiftData(null); setWellnessCheckInOpen(false);
     setEndMileage(""); setIncome(""); setShiftNotes(""); setTasksCompleted("");
     setSelectedPlatforms([]); setEndShiftDialogOpen(true);
   };
@@ -279,7 +264,7 @@ const Index = () => {
         throw new Error("No active shift found");
       }
     }
-    const newExpense: Expense = { ...expenseData, receiptImage: undefined, id: uuidv4(), timestamp: new Date() };
+    const newExpense: Expense = { ...expenseData, receiptImage: undefined, id: randomUUID(), timestamp: new Date() };
     try {
       const { saveExpenseToDatabase } = await import("@/lib/expense-storage");
       const shiftToUse = currentShift || getCurrentShift();
@@ -313,139 +298,127 @@ const Index = () => {
 
   return (
     <View className="flex-1 bg-background">
+      <FloatingFeedbackButton />
       <Modal visible={startShiftDialogOpen} transparent animationType="slide" onRequestClose={() => setStartShiftDialogOpen(false)}>
-        <TouchableWithoutFeedback onPress={() => setStartShiftDialogOpen(false)}>
-          <View className="flex-1 bg-black/50 justify-end">
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-                <View className="bg-background rounded-t-2xl border-t border-border">
-                  <View className="px-4 pt-4 pb-2 border-b border-border">
-                    <Text className="text-lg font-semibold text-foreground">
-                      {isMileageOnly ? "Start Mileage Tracking" : "Start New Shift"}
-                    </Text>
-                    <Text className="text-sm text-muted-foreground mt-1">
-                      {isMileageOnly ? "Track mileage for errands without time or income tracking." : "Enter your current odometer reading to start tracking your shift."}
-                    </Text>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setStartShiftDialogOpen(false)} />
+          <KeyboardAvoidingView behavior="padding">
+            <View className="bg-background rounded-t-2xl border-t border-border">
+              <View className="px-4 pt-4 pb-2 border-b border-border">
+                <Text className="text-lg font-semibold text-foreground">
+                  {isMileageOnly ? "Start Mileage Tracking" : "Start New Shift"}
+                </Text>
+                <Text className="text-sm text-muted-foreground mt-1">
+                  {isMileageOnly ? "Track mileage for errands without time or income tracking." : "Enter your current odometer reading to start tracking your shift."}
+                </Text>
+              </View>
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 300 }}>
+                <View className="px-4 py-4 space-y-4">
+                  <View className="flex-row items-center justify-between">
+                    <Label>Mileage only (no time/income tracking)</Label>
+                    <Switch checked={isMileageOnly} onCheckedChange={(c) => setIsMileageOnly(c)} />
                   </View>
-                  <View className="px-4 py-4 space-y-4">
-                    <View className="flex-row items-center justify-between">
-                      <Label>Mileage only (no time/income tracking)</Label>
-                      <Switch checked={isMileageOnly} onCheckedChange={(c) => setIsMileageOnly(c)} />
+                  {!skipOdometer && (
+                    <View>
+                      <Label className="mb-1">Starting Odometer Reading (miles)</Label>
+                      <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter your current odometer reading" placeholderTextColor="#6b7280" keyboardType="numeric" value={startMileage} onChangeText={setStartMileage} />
                     </View>
-                    {!skipOdometer && (
-                      <View>
-                        <Label className="mb-1">Starting Odometer Reading (miles)</Label>
-                        <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter your current odometer reading" keyboardType="numeric" value={startMileage} onChangeText={setStartMileage} />
-                      </View>
-                    )}
-                  </View>
-                  <View className="flex-row justify-end gap-2 px-4 py-3 border-t border-border">
-                    <Button variant="outline" onPress={() => setStartShiftDialogOpen(false)}>Cancel</Button>
-                    <Button onPress={handleStartShift}>{isMileageOnly ? "Start Tracking" : "Start Shift"}</Button>
-                  </View>
+                  )}
                 </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+              </ScrollView>
+              <View className="flex-row justify-end gap-2 px-4 py-3 border-t border-border" style={{ paddingBottom: Math.max(12, insets.bottom) }}>
+                <Button variant="outline" onPress={() => setStartShiftDialogOpen(false)}>Cancel</Button>
+                <Button onPress={handleStartShift}>{isMileageOnly ? "Start Tracking" : "Start Shift"}</Button>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={endShiftDialogOpen} transparent animationType="slide" onRequestClose={() => setEndShiftDialogOpen(false)}>
-        <TouchableWithoutFeedback onPress={() => setEndShiftDialogOpen(false)}>
-          <View className="flex-1 bg-black/50 justify-end">
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-                <View className="bg-background rounded-t-2xl border-t border-border" style={{ maxHeight: "90%" }}>
-                  <View className="px-4 pt-4 pb-2 border-b border-border">
-                    <Text className="text-lg font-semibold text-foreground">
-                      {currentShift?.isMileageOnly ? "End Tracking" : "End Shift"}
-                    </Text>
-                    {!currentShift?.isMileageOnly && isPaused && formattedDuration && (
-                      <Text className="text-sm font-medium text-amber-700 mt-1">Duration: {formattedDuration}</Text>
-                    )}
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setEndShiftDialogOpen(false)} />
+          <KeyboardAvoidingView behavior="padding">
+            <View className="bg-background rounded-t-2xl border-t border-border">
+              <View className="px-4 pt-4 pb-2 border-b border-border">
+                <Text className="text-lg font-semibold text-foreground">
+                  {currentShift?.isMileageOnly ? "End Tracking" : "End Shift"}
+                </Text>
+                {!currentShift?.isMileageOnly && formattedDuration && (
+                  <Text className="text-sm font-medium text-lime-600 mt-1">Duration: {formattedDuration}</Text>
+                )}
+              </View>
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 380 }}>
+              <View className="px-4 pt-3 pb-2">
+                {useGpsTracking && currentShift && (
+                  <View style={{ marginBottom: 10 }}>
+                    <Text className="text-sm text-muted-foreground">GPS mileage: {(Math.round(currentGpsMileage * 100) / 100).toFixed(2)} miles</Text>
                   </View>
-                  <ScrollView className="px-4" keyboardShouldPersistTaps="handled" style={{ maxHeight: 400 }}>
-                    <View className="py-4 space-y-4">
-                      {currentShift && !skipOdometer && (
-                        <View className="bg-muted p-3 rounded-md border border-border">
-                          <Text className="text-sm text-foreground">Starting mileage: {currentShift.mileageStart?.toFixed(2)} miles</Text>
-                        </View>
-                      )}
-                      {useGpsTracking && currentShift && (
-                        <View className="bg-muted p-3 rounded-md border border-border">
-                          <Text className="text-sm font-medium text-foreground">GPS Tracking Enabled</Text>
-                          <Text className="text-sm text-foreground">GPS mileage: {(Math.round(currentGpsMileage * 100) / 100).toFixed(2)} miles</Text>
-                        </View>
-                      )}
-                      {!skipOdometer && (
-                        <View>
-                          <Label className="mb-1">Ending Odometer Reading (miles)</Label>
-                          <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter your current odometer reading" keyboardType="numeric" value={endMileage} onChangeText={setEndMileage} />
-                        </View>
-                      )}
-                      {currentShift?.isMileageOnly && (
-                        <View>
-                          <Label className="mb-1">Notes (optional)</Label>
-                          <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Add notes about your trip" value={shiftNotes} onChangeText={setShiftNotes} multiline numberOfLines={3} style={{ minHeight: 72, textAlignVertical: "top" }} />
-                        </View>
-                      )}
-                      {!currentShift?.isMileageOnly && (
-                        <>
-                          <View>
-                            <Label className="mb-1">Income Earned ($)</Label>
-                            <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter your income for this shift" keyboardType="decimal-pad" value={income} onChangeText={setIncome} />
-                          </View>
-                          <View>
-                            <Label className="mb-1">Tasks/Trips (optional)</Label>
-                            <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter number of tasks/trips completed" keyboardType="numeric" value={tasksCompleted} onChangeText={setTasksCompleted} />
-                          </View>
-                          <PlatformSelector selectedPlatforms={selectedPlatforms} onPlatformsChange={setSelectedPlatforms} savedPlatforms={businessSettings?.gigPlatforms || []} onSaveNewPlatform={handleSaveNewPlatform} />
-                        </>
-                      )}
+                )}
+                {!skipOdometer && (
+                  <View style={{ marginBottom: 10 }}>
+                    <Label style={{ marginBottom: 4 }}>
+                      Ending Odometer{currentShift && !skipOdometer ? ` (started at ${currentShift.mileageStart?.toFixed(0)})` : ""}
+                    </Label>
+                    <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Enter your current odometer reading" placeholderTextColor="#6b7280" keyboardType="numeric" value={endMileage} onChangeText={setEndMileage} />
+                  </View>
+                )}
+                {currentShift?.isMileageOnly && (
+                  <View style={{ marginBottom: 10 }}>
+                    <Label style={{ marginBottom: 4 }}>Notes (optional)</Label>
+                    <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Add notes about your trip" placeholderTextColor="#6b7280" value={shiftNotes} onChangeText={setShiftNotes} multiline numberOfLines={3} style={{ minHeight: 72, textAlignVertical: "top" }} />
+                  </View>
+                )}
+                {!currentShift?.isMileageOnly && (
+                  <>
+                    <View style={{ marginBottom: 10 }}>
+                      <Label style={{ marginBottom: 4 }}>Income Earned ($)</Label>
+                      <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Enter your income for this shift" placeholderTextColor="#6b7280" keyboardType="decimal-pad" value={income} onChangeText={setIncome} />
                     </View>
-                  </ScrollView>
-                  <View className="flex-row gap-2 px-4 py-3 border-t border-border">
-                    <Button variant="outline" onPress={() => setEndShiftDialogOpen(false)} className="flex-1 bg-lime-500">Cancel</Button>
-                    <Button variant="outline" onPress={() => setAddExpenseDialogOpen(true)} className="flex-1 bg-blue-500 flex-row items-center gap-1">
-                      <Plus size={16} color="white" />
-                    </Button>
-                    <Button onPress={handleEndShift} disabled={syncingShift} className="flex-1 bg-red-500">
-                      {syncingShift ? "Saving..." : currentShift?.isMileageOnly ? "End Tracking" : "End Shift"}
-                    </Button>
-                  </View>
-                </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+                    <View style={{ marginBottom: 10 }}>
+                      <Label style={{ marginBottom: 4 }}>Tasks/Trips (optional)</Label>
+                      <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Enter number of tasks/trips completed" placeholderTextColor="#6b7280" keyboardType="numeric" value={tasksCompleted} onChangeText={setTasksCompleted} />
+                    </View>
+                    <PlatformSelector selectedPlatforms={selectedPlatforms} onPlatformsChange={setSelectedPlatforms} savedPlatforms={businessSettings?.gigPlatforms || []} onSaveNewPlatform={handleSaveNewPlatform} />
+                  </>
+                )}
+              </View>
+              </ScrollView>
+              <View className="flex-row gap-2 px-4 py-3 border-t border-border" style={{ paddingBottom: Math.max(12, insets.bottom) }}>
+                <Button variant="outline" onPress={() => setEndShiftDialogOpen(false)} className="flex-1 bg-lime-500">Cancel</Button>
+                <Button variant="outline" onPress={() => setAddExpenseDialogOpen(true)} className="flex-1 bg-blue-500 flex-row items-center gap-1">
+                  <Plus size={16} color="white" />
+                </Button>
+                <Button onPress={handleEndShift} disabled={syncingShift} className="flex-1 bg-red-500">
+                  {syncingShift ? "Saving..." : currentShift?.isMileageOnly ? "End Tracking" : "End Shift"}
+                </Button>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={addExpenseDialogOpen} transparent animationType="slide" onRequestClose={() => setAddExpenseDialogOpen(false)}>
-        <TouchableWithoutFeedback onPress={() => setAddExpenseDialogOpen(false)}>
-          <View className="flex-1 bg-black/50 justify-end">
-            <TouchableWithoutFeedback>
-              <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-                <View className="bg-background rounded-t-2xl border-t border-border">
-                  <View className="px-4 pt-4 pb-2 border-b border-border">
-                    <Text className="text-lg font-semibold text-foreground">Add Expense</Text>
-                    <Text className="text-sm text-muted-foreground mt-1">Record an expense during your shift.</Text>
-                  </View>
-                  <ScrollView className="px-4" style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
-                    <View className="py-4">
-                      <ExpenseForm onAddExpense={handleAddExpense} />
-                    </View>
-                  </ScrollView>
-                  <View className="flex-row justify-end px-4 py-3 border-t border-border">
-                    <Button variant="outline" onPress={() => setAddExpenseDialogOpen(false)}>Cancel</Button>
-                  </View>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <Pressable style={{ flex: 1 }} onPress={() => setAddExpenseDialogOpen(false)} />
+          <KeyboardAvoidingView behavior="padding">
+            <View className="bg-background rounded-t-2xl border-t border-border">
+              <View className="px-4 pt-4 pb-2 border-b border-border">
+                <Text className="text-lg font-semibold text-foreground">Add Expense</Text>
+                <Text className="text-sm text-muted-foreground mt-1">Record an expense during your shift.</Text>
+              </View>
+              <ScrollView className="px-4" style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+                <View className="py-4">
+                  <ExpenseForm onAddExpense={handleAddExpense} />
                 </View>
-              </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+              </ScrollView>
+              <View className="flex-row justify-end px-4 py-3 border-t border-border" style={{ paddingBottom: Math.max(12, insets.bottom) }}>
+                <Button variant="outline" onPress={() => setAddExpenseDialogOpen(false)}>Cancel</Button>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
-
-      <WellnessCheckIn isOpen={wellnessCheckInOpen} onClose={handleWellnessSkip} onSave={handleWellnessCheckIn} />
 
       <View className="flex-1 items-center justify-center">
         <ShiftButton isActive={!!currentShift} isPaused={isPaused} onStart={promptStartShift} onEnd={promptEndShift} onPause={handlePauseShift} isMileageOnly={currentShift?.isMileageOnly || false} />

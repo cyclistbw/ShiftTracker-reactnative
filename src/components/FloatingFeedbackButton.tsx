@@ -24,8 +24,9 @@ const FloatingFeedbackButton = () => {
           onPress={handleOpen}
           size="icon"
           className="bg-lime-500 shadow-lg rounded-full"
+          style={{ width: 56, height: 56 }}
         >
-          <MessageSquare size={16} color="#ffffff" />
+          <MessageSquare size={22} color="#ffffff" />
         </Button>
       </View>
 

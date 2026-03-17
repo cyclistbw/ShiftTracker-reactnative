@@ -11,6 +11,7 @@ import Toast from "react-native-toast-message";
 import { AuthProvider } from "@/context/AuthContext";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { ContentModeProvider } from "@/context/ContentModeContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import RootNavigation from "@/navigation/index";
 
 const queryClient = new QueryClient();
@@ -20,14 +21,16 @@ export default function App() {
     <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <SubscriptionProvider>
-              <ContentModeProvider>
-                <RootNavigation />
-                <Toast />
-              </ContentModeProvider>
-            </SubscriptionProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <SubscriptionProvider>
+                <ContentModeProvider>
+                  <RootNavigation />
+                  <Toast />
+                </ContentModeProvider>
+              </SubscriptionProvider>
+            </AuthProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

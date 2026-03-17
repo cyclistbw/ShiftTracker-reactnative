@@ -14,7 +14,7 @@ const Layout = ({ children }: LayoutProps) => {
   useActivityTracker();
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-background">
+    <SafeAreaView className="flex-1 bg-background">
       <View className="flex-1 w-full px-4 py-4">
         {children}
       </View>

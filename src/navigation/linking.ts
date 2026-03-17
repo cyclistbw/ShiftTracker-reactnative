@@ -24,7 +24,6 @@ export const linking: LinkingOptions<any> = {
         screens: {
           Dashboard: "",
           History: "history",
-          ShiftBuddy: "shiftbuddy",
           TaxReport: "tax-report",
           Settings: "settings",
         },

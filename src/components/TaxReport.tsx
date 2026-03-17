@@ -5,7 +5,8 @@
 // 🚩 FLAG: ChartContainer/ChartTooltip/ChartTooltipContent → removed (charts not rendered)
 // 🚩 FLAG: <div>/<span> → <View>/<Text>; grid → flex-row flex-wrap
 import { useState, useMemo } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, useWindowDimensions } from "react-native";
+import { BarChart, PieChart } from "react-native-gifted-charts";
 import { Shift } from "@/types/shift";
 import {
   getYearlyReportData,
@@ -39,6 +40,7 @@ import {
 } from "lucide-react-native";
 import { useContentMode } from "@/context/ContentModeContext";
 import { formatCurrencyWithContentMode } from "@/utils/analytics-utils";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 
 interface TaxReportProps {
   shifts: Shift[];
@@ -59,6 +61,15 @@ const TAX_BRACKETS = [
 
 const TaxReport = ({ shifts }: TaxReportProps) => {
   const { isContentModeEnabled } = useContentMode();
+  const { isDark } = useTheme();
+  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
+  const limeIconColor = isDark ? "#84cc16" : "#4d7c0f";
+  const limeLabelColor = isDark ? "#a3e635" : "#4d7c0f";
+  const limeBgColor = isDark ? "#1a2e05" : "#f7fee7";
+  const limeBorderColor = isDark ? "#3f6212" : "#d9f99d";
+  const chartLabelColor = isDark ? "#94a3b8" : "#6b7280";
+  const chartAxisColor = isDark ? "#334155" : "#e5e7eb";
+  const chartRulesColor = isDark ? "#1e293b" : "#f3f4f6";
   const { settings } = useBusinessSettings();
   const { vehicles } = useVehicles();
   const mileageRate = settings?.defaultMileageRate || 0.655;
@@ -238,16 +249,24 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
     [quarterlyData]
   );
 
+  const { width } = useWindowDimensions();
+  // chartContainerWidth is measured via onLayout for accuracy.
+  // gifted-charts renders the y-axis OUTSIDE its width prop, so we subtract
+  // yAxisLabelWidth (50) from the container width to prevent overflow.
+  const [chartContainerWidth, setChartContainerWidth] = useState(0);
+  const Y_AXIS_WIDTH = 50;
+  const barChartWidth = (chartContainerWidth > 0 ? chartContainerWidth : width - 80) - Y_AXIS_WIDTH;
+
   if (shifts.length === 0) {
     return (
       <View className="items-center py-8">
-        <Text className="text-gray-500">No completed shifts for tax reporting</Text>
+        <Text className="text-muted-foreground">No completed shifts for tax reporting</Text>
       </View>
     );
   }
 
   return (
-    <View className="space-y-6">
+    <View className="gap-6">
       {/* Year selector */}
       <View className="items-end">
         <Select
@@ -260,7 +279,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
           <SelectContent>
             {availableYears.map((year) => (
               <SelectItem key={year} value={year.toString()}>
-                {year} Tax Year
+                {`${year} Tax Year`}
               </SelectItem>
             ))}
           </SelectContent>
@@ -269,7 +288,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
       {/* Quarterly Tax Reminder Banner */}
       <Alert variant="warning">
-        <Calendar size={16} color="#92400e" />
+        <Calendar size={16} color={isDark ? "#fbbf24" : "#92400e"} />
         <AlertTitle>Quarterly Tax Payment Reminder</AlertTitle>
         <AlertDescription>
           {nextTaxInfo.quarter} {nextTaxInfo.year} quarterly taxes are due on{" "}
@@ -280,10 +299,10 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
       </Alert>
 
       {/* Yearly summary card */}
-      <Card className="bg-lime-50 border-lime-200">
+      <Card style={{ backgroundColor: limeBgColor, borderColor: limeBorderColor }}>
         <CardHeader className="pb-2">
           <CardTitle className="flex-row items-center gap-2 text-lg font-medium">
-            <FileText size={20} color="#4d7c0f" />
+            <FileText size={20} color={limeIconColor} />
             <Text className="text-foreground font-medium ml-2">Tax Summary for {selectedYear}</Text>
           </CardTitle>
         </CardHeader>
@@ -291,8 +310,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
           <View className="flex-row flex-wrap gap-y-4">
             <View className="w-1/2">
               <View className="flex-row items-center">
-                <DollarSign size={16} color="#4d7c0f" />
-                <Text className="text-sm text-lime-700 ml-1">Gross Income</Text>
+                <DollarSign size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Gross Income</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {formatCurrency(yearlyData.totalIncome)}
@@ -301,8 +320,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
             <View className="w-1/2">
               <View className="flex-row items-center">
-                <Receipt size={16} color="#4d7c0f" />
-                <Text className="text-sm text-lime-700 ml-1">Total Expenses</Text>
+                <Receipt size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Total Expenses</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {formatCurrency(yearlyData.totalExpenses)}
@@ -311,8 +330,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
             <View className="w-1/2">
               <View className="flex-row items-center">
-                <Clock size={16} color="#4d7c0f" />
-                <Text className="text-sm text-lime-700 ml-1">Total Hours</Text>
+                <Clock size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Total Hours</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {formatDuration(yearlyData.totalHours)}
@@ -321,8 +340,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
             <View className="w-1/2">
               <View className="flex-row items-center">
-                <Car size={16} color="#4d7c0f" />
-                <Text className="text-sm text-lime-700 ml-1">Business Mileage</Text>
+                <Car size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Business Mileage</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {yearlyData.totalMileage.toLocaleString()} miles
@@ -331,8 +350,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
             <View className="w-full">
               <View className="flex-row items-center">
-                <DollarSign size={16} color="#4d7c0f" />
-                <Text className="text-sm text-lime-700 ml-1">Net Income (Taxable)</Text>
+                <DollarSign size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Net Income (Taxable)</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {formatCurrency(yearlyData.netIncome)}
@@ -342,10 +361,10 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
           {/* Vehicle Mileage Analysis */}
           {vehicleMileageBreakdown.totalVehicleMiles > 0 && (
-            <View className="mt-4 pt-4 border-t border-lime-200">
+            <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: limeBorderColor }}>
               <View className="flex-row items-center mb-3">
-                <Car size={16} color="#4d7c0f" />
-                <Text className="text-sm font-medium text-lime-700 ml-1">
+                <Car size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm font-medium ml-1">
                   Vehicle Mileage Analysis
                 </Text>
               </View>
@@ -401,12 +420,37 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
               <CardTitle className="text-base font-medium">Quarterly Income Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* 🚩 FLAG: recharts BarChart → text-based data table (install react-native-gifted-charts for charts) */}
-              <View className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <Text className="text-xs text-muted-foreground text-center">
-                  📊 Chart view requires react-native-gifted-charts or victory-native
-                </Text>
-              </View>
+              {quarterlyData.length > 0 && (
+                <View className="mb-4" onLayout={(e) => setChartContainerWidth(e.nativeEvent.layout.width)}>
+                  <BarChart
+                    data={quarterlyData.flatMap((q) => [
+                      { value: Math.max(0, Math.round(q.summary.totalIncome)), label: `Q${q.quarter}`, frontColor: "#4ade80", spacing: 4, labelTextStyle: { color: chartLabelColor, fontSize: 10 } },
+                      { value: Math.max(0, Math.round(q.summary.netIncome)), frontColor: "#60a5fa", spacing: 18 },
+                    ])}
+                    width={barChartWidth}
+                    barWidth={26}
+                    noOfSections={4}
+                    roundedTop
+                    isAnimated
+                    yAxisLabelPrefix="$"
+                    yAxisLabelWidth={Y_AXIS_WIDTH}
+                    yAxisTextStyle={{ color: chartLabelColor, fontSize: 10 }}
+                    yAxisColor="transparent"
+                    xAxisColor={chartAxisColor}
+                    rulesColor={chartRulesColor}
+                  />
+                  <View className="flex-row gap-4 mt-2 justify-center">
+                    <View className="flex-row items-center gap-1">
+                      <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: "#4ade80" }} />
+                      <Text className="text-xs text-muted-foreground">Income</Text>
+                    </View>
+                    <View className="flex-row items-center gap-1">
+                      <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: "#60a5fa" }} />
+                      <Text className="text-xs text-muted-foreground">Net Income</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               <View className="flex-row flex-wrap gap-3">
                 {quarterlyData.map((q, index) => {
                   const breakdown = quarterlyBreakdowns[index];
@@ -416,7 +460,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                       key={q.quarter}
                       className="w-[48%] overflow-hidden rounded-lg border border-border"
                     >
-                      <View className="py-2 px-3 bg-gray-50 flex-row justify-between items-center">
+                      <View className="py-2 px-3 flex-row justify-between items-center" style={{ backgroundColor: themeColors.muted }}>
                         <Text className="text-sm font-medium text-foreground">
                           Q{q.quarter} {selectedYear}
                         </Text>
@@ -427,7 +471,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                           {q.quarter === 4 && "Oct–Dec"}
                         </Text>
                       </View>
-                      <View className="p-3 space-y-1">
+                      <View className="p-3 gap-1">
                         <View className="flex-row justify-between">
                           <Text className="text-muted-foreground text-sm">Income:</Text>
                           <Text className="font-medium text-sm text-foreground">
@@ -452,7 +496,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                             {formatCurrency(q.summary.netIncome)}
                           </Text>
                         </View>
-                        <View className="mt-1 pt-1 border-t border-gray-200">
+                        <View className="mt-1 pt-1" style={{ borderTopWidth: 1, borderTopColor: themeColors.border }}>
                           <View className="flex-row items-center gap-1">
                             <Text className="text-muted-foreground text-xs">Est. Taxes:</Text>
                             {/* 🚩 FLAG: Tooltip → inline note text */}
@@ -480,14 +524,14 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                               ) : (
                                 <ChevronDown size={12} color="#65a30d" />
                               )}
-                              <Text className="text-xs text-lime-600">
+                              <Text style={{ color: isDark ? "#a3e635" : "#65a30d" }} className="text-xs">
                                 View Tax Calculation
                               </Text>
                             </Pressable>
 
                             {isOpen && (
-                              <View className="mt-2 bg-gray-50 rounded p-2 space-y-1">
-                                <Text className="font-medium text-lime-700 text-xs">
+                              <View className="mt-2 rounded p-2 gap-1" style={{ backgroundColor: themeColors.muted }}>
+                                <Text style={{ color: limeLabelColor }} className="font-medium text-xs">
                                   YTD Income: {formatCurrency(breakdown.cumulativeIncome)}
                                 </Text>
                                 {breakdown.brackets.map(
@@ -516,7 +560,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                                       </View>
                                     )
                                 )}
-                                <View className="pt-1 border-t border-gray-200 flex-row justify-between">
+                                <View className="pt-1 flex-row justify-between" style={{ borderTopWidth: 1, borderTopColor: themeColors.border }}>
                                   <Text className="font-medium text-xs text-foreground">
                                     Total YTD Tax:
                                   </Text>
@@ -534,7 +578,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                                     </Text>
                                   </View>
                                 )}
-                                <View className="pt-1 border-t border-lime-200 flex-row justify-between">
+                                <View className="pt-1 flex-row justify-between" style={{ borderTopWidth: 1, borderTopColor: limeBorderColor }}>
                                   <Text className="font-medium text-xs text-red-600">
                                     Q{q.quarter} Tax Due:
                                   </Text>
@@ -562,24 +606,45 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
               <CardTitle className="text-base font-medium">Monthly Income Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* 🚩 FLAG: recharts BarChart → text-based grid */}
-              <View className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <Text className="text-xs text-muted-foreground text-center">
-                  📊 Chart view requires react-native-gifted-charts or victory-native
-                </Text>
-              </View>
+              {monthlyData.length > 0 && (
+                <View className="mb-4" onLayout={(e) => setChartContainerWidth(e.nativeEvent.layout.width)}>
+                  <BarChart
+                    data={monthlyData.map((m) => ({
+                      value: Math.max(0, Math.round(m.summary.totalIncome)),
+                      label: MONTH_NAMES[m.month],
+                      frontColor: "#4ade80",
+                      labelTextStyle: { color: chartLabelColor, fontSize: 9 },
+                    }))}
+                    width={barChartWidth}
+                    barWidth={22}
+                    spacing={14}
+                    noOfSections={4}
+                    roundedTop
+                    isAnimated
+                    yAxisLabelPrefix="$"
+                    yAxisLabelWidth={Y_AXIS_WIDTH}
+                    yAxisTextStyle={{ color: chartLabelColor, fontSize: 10 }}
+                    yAxisColor="transparent"
+                    xAxisColor={chartAxisColor}
+                    rulesColor={chartRulesColor}
+                  />
+                  <Text style={{ color: chartLabelColor }} className="text-xs text-center mt-1">
+                    ← swipe chart to see all months →
+                  </Text>
+                </View>
+              )}
               <View className="flex-row flex-wrap gap-3">
                 {monthlyData.map((m) => (
                   <View
                     key={m.month}
                     className="w-[48%] overflow-hidden rounded-lg border border-border"
                   >
-                    <View className="py-2 px-3 bg-gray-50">
+                    <View className="py-2 px-3" style={{ backgroundColor: themeColors.muted }}>
                       <Text className="text-sm font-medium text-foreground">
                         {MONTH_NAMES[m.month]} {selectedYear}
                       </Text>
                     </View>
-                    <View className="p-3 space-y-1">
+                    <View className="p-3 gap-1">
                       <View className="flex-row justify-between">
                         <Text className="text-muted-foreground text-sm">Income:</Text>
                         <Text className="font-medium text-sm text-foreground">
@@ -619,26 +684,51 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
               <CardTitle className="text-base font-medium">Expense Categories</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* 🚩 FLAG: recharts PieChart/ChartContainer → color-coded list */}
               {categoryData.length > 0 ? (
-                <View className="border border-border rounded-md divide-y divide-border">
-                  {categoryData.map((category, index) => (
-                    <View
-                      key={index}
-                      className="flex-row items-center justify-between p-3"
-                    >
-                      <View className="flex-row items-center">
-                        <View
-                          className="w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <Text className="text-foreground text-sm">{category.category}</Text>
+                <View className="gap-4">
+                  <View className="items-center">
+                    <PieChart
+                      data={categoryData.map((cat, i) => ({
+                        value: cat.amount,
+                        color: COLORS[i % COLORS.length],
+                        text: `${((cat.amount / categoryData.reduce((sum, c) => sum + c.amount, 0)) * 100).toFixed(0)}%`,
+                        textColor: "#fff",
+                        textSize: 11,
+                      }))}
+                      donut
+                      innerRadius={60}
+                      radius={90}
+                      innerCircleColor={themeColors.card}
+                      showText
+                      centerLabelComponent={() => (
+                        <View style={{ alignItems: "center", backgroundColor: themeColors.card, borderRadius: 60, padding: 4 }}>
+                          <Text style={{ color: themeColors.mutedForeground, fontSize: 11 }}>Total</Text>
+                          <Text style={{ color: themeColors.foreground, fontSize: 13, fontWeight: "bold" }}>
+                            {formatCurrency(categoryData.reduce((sum, c) => sum + c.amount, 0))}
+                          </Text>
+                        </View>
+                      )}
+                    />
+                  </View>
+                  <View className="rounded-md border border-border overflow-hidden">
+                    {categoryData.map((category, index) => (
+                      <View
+                        key={index}
+                        className="flex-row items-center justify-between p-3"
+                        style={index > 0 ? { borderTopWidth: 1, borderTopColor: themeColors.border } : {}}
+                      >
+                        <View className="flex-row items-center">
+                          <View
+                            style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS[index % COLORS.length], marginRight: 8 }}
+                          />
+                          <Text className="text-foreground text-sm">{category.category}</Text>
+                        </View>
+                        <Text className="font-medium text-foreground text-sm">
+                          {formatCurrency(category.amount)}
+                        </Text>
                       </View>
-                      <Text className="font-medium text-foreground text-sm">
-                        {formatCurrency(category.amount)}
-                      </Text>
-                    </View>
-                  ))}
+                    ))}
+                  </View>
                 </View>
               ) : (
                 <View className="items-center py-4">
@@ -655,7 +745,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
         <CardHeader>
           <CardTitle className="text-base font-medium">Tax Filing Tips</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="gap-2">
           {[
             "Keep all receipts for your expenses",
             "Track your mileage with detailed logs",

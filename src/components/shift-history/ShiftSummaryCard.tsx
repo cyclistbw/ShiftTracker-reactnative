@@ -6,8 +6,9 @@ import { ShiftSummary, Shift } from "@/types/shift";
 import { Separator } from "@/components/ui/separator";
 import { useContentMode } from "@/context/ContentModeContext";
 import { formatCurrencyWithContentMode } from "@/utils/analytics-utils";
+import { useTheme } from "@/context/ThemeContext";
 
-type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "year" | "dateRange";
+type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
 interface ShiftSummaryCardProps {
   summary: ShiftSummary;
@@ -23,6 +24,7 @@ const getTimePeriodLabel = (tp?: TimePeriod): string => {
     case "month": return "This Month";
     case "prevMonth": return "Previous Month";
     case "ytd": return "Year to Date";
+    case "prevYear": return "Previous Year";
     case "year": return "Last 12 Months";
     case "dateRange": return "Date Range";
     default: return "All Time";
@@ -31,6 +33,11 @@ const getTimePeriodLabel = (tp?: TimePeriod): string => {
 
 const ShiftSummaryCard = ({ summary, dateRange, timePeriod, shifts = [] }: ShiftSummaryCardProps) => {
   const { isContentModeEnabled } = useContentMode();
+  const { isDark } = useTheme();
+  const limeIconColor = isDark ? "#84cc16" : "#4d7c0f";
+  const limeLabelColor = isDark ? "#a3e635" : "#4d7c0f";
+  const limeBgColor = isDark ? "#1a2e05" : "#f7fee7";
+  const limeBorderColor = isDark ? "#3f6212" : "#d9f99d";
   const formatCurrency = (amount: number) => formatCurrencyWithContentMode(amount, isContentModeEnabled);
 
   const formatDuration = (hours: number) => {
@@ -53,7 +60,7 @@ const ShiftSummaryCard = ({ summary, dateRange, timePeriod, shifts = [] }: Shift
   const avgEarningsPerTask = totalTasks > 0 ? grossIncome / totalTasks : 0;
 
   return (
-    <Card className="bg-lime-50 border-lime-200">
+    <Card style={{ backgroundColor: limeBgColor, borderColor: limeBorderColor }}>
       <CardHeader className="pb-2">
         <View className="flex-row justify-between items-center">
           <CardTitle>Summary ({getTimePeriodLabel(timePeriod)})</CardTitle>
@@ -65,21 +72,22 @@ const ShiftSummaryCard = ({ summary, dateRange, timePeriod, shifts = [] }: Shift
       <CardContent className="pt-4">
         <Separator className="mb-4" />
         <View className="flex-row flex-wrap">
-          <StatItem icon={<Clock size={16} color="#4d7c0f" />} label="Total Hours" value={formatDuration(summary.totalHours)} />
-          <StatItem icon={<Car size={16} color="#4d7c0f" />} label="Total Mileage" value={`${(Math.round(summary.totalMileage * 100) / 100).toFixed(2)} miles`} />
-          <StatItem icon={<DollarSign size={16} color="#4d7c0f" />} label="Gross Income" value={formatCurrency(grossIncome)} />
+          <StatItem icon={<Clock size={16} color={limeIconColor} />} label="Total Hours" value={formatDuration(summary.totalHours)} labelColor={limeLabelColor} />
+          <StatItem icon={<Car size={16} color={limeIconColor} />} label="Total Mileage" value={`${(Math.round(summary.totalMileage * 100) / 100).toFixed(2)} miles`} labelColor={limeLabelColor} />
+          <StatItem icon={<DollarSign size={16} color={limeIconColor} />} label="Gross Income" value={formatCurrency(grossIncome)} labelColor={limeLabelColor} />
           <StatItem
-            icon={<Receipt size={16} color="#4d7c0f" />}
+            icon={<Receipt size={16} color={limeIconColor} />}
             label="Total Expenses"
             value={formatCurrency(summary.totalExpenses)}
             sub={`(Mile Deduction: ${formatCurrency(summary.mileDeduction)})`}
+            labelColor={limeLabelColor}
           />
-          <StatItem icon={<DollarSign size={16} color="#4d7c0f" />} label="Net Income" value={formatCurrency(netIncome)} />
-          <StatItem icon={<TrendingUp size={16} color="#4d7c0f" />} label="Hourly Average" value={`${formatCurrency(summary.hourlyAverage)}/hr`} />
+          <StatItem icon={<DollarSign size={16} color={limeIconColor} />} label="Net Income" value={formatCurrency(netIncome)} labelColor={limeLabelColor} />
+          <StatItem icon={<TrendingUp size={16} color={limeIconColor} />} label="Hourly Average" value={`${formatCurrency(summary.hourlyAverage)}/hr`} labelColor={limeLabelColor} />
           {totalTasks > 0 && (
             <>
-              <StatItem icon={<Activity size={16} color="#4d7c0f" />} label="Tasks/Hour" value={`${avgTasksPerHour.toFixed(1)}/hr`} />
-              <StatItem icon={<Calculator size={16} color="#4d7c0f" />} label="Earnings/Task" value={formatCurrency(avgEarningsPerTask)} />
+              <StatItem icon={<Activity size={16} color={limeIconColor} />} label="Tasks/Hour" value={`${avgTasksPerHour.toFixed(1)}/hr`} labelColor={limeLabelColor} />
+              <StatItem icon={<Calculator size={16} color={limeIconColor} />} label="Earnings/Task" value={formatCurrency(avgEarningsPerTask)} labelColor={limeLabelColor} />
             </>
           )}
         </View>
@@ -88,10 +96,10 @@ const ShiftSummaryCard = ({ summary, dateRange, timePeriod, shifts = [] }: Shift
   );
 };
 
-function StatItem({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function StatItem({ icon, label, value, sub, labelColor }: { icon: React.ReactNode; label: string; value: string; sub?: string; labelColor?: string }) {
   return (
     <View className="w-1/2 pr-4 mb-4 flex-col">
-      <View className="flex-row items-center mb-0.5">{icon}<Text className="text-sm text-lime-700 ml-1">{label}</Text></View>
+      <View className="flex-row items-center mb-0.5">{icon}<Text style={{ color: labelColor }} className="text-sm ml-1">{label}</Text></View>
       <Text className="text-lg font-medium text-foreground">{value}</Text>
       {sub && <Text className="text-xs text-muted-foreground">{sub}</Text>}
     </View>

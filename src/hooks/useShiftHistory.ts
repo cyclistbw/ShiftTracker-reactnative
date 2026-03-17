@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Shift, GigAnalyticsData } from "@/types/shift";
 // 🚩 FLAG: getShifts() is now async (AsyncStorage) — must be awaited
 import { getShifts, getFilteredShifts } from "@/lib/storage";
@@ -14,7 +14,7 @@ import { startOfDay, endOfDay } from "date-fns";
 // 🚩 FLAG: DateRange type — replaces import from react-day-picker
 export type DateRange = { from?: Date; to?: Date };
 
-type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "year" | "dateRange";
+type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
 const getFilteredShiftsWithDateRange = (shifts: Shift[], timePeriod: TimePeriod, startDate?: Date, endDate?: Date): Shift[] => {
   if (timePeriod === "dateRange" && startDate && endDate) {
@@ -273,14 +273,12 @@ export const useShiftHistory = () => {
     }
   };
 
-  const getDisplayedShifts = () => {
+  const displayedShifts = useMemo(() => {
     if (timePeriod === "dateRange" && dateRange?.from && dateRange?.to) {
       return getFilteredShiftsWithDateRange(shifts, timePeriod, dateRange.from, dateRange.to);
     }
     return getFilteredShiftsWithDateRange(shifts, timePeriod);
-  };
-
-  const displayedShifts = getDisplayedShifts();
+  }, [shifts, timePeriod, dateRange]);
 
   return {
     shifts: displayedShifts,

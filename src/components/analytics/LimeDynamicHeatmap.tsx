@@ -10,7 +10,6 @@ import {
   Text,
   ActivityIndicator,
   Pressable,
-  Appearance,
 } from "react-native";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { getHeatmapColor } from "@/utils/analytics-utils";
+import { useTheme } from "@/context/ThemeContext";
 import DateFilterControls, { DateFilterState } from "./DateFilterControls";
 import { applyDateFilter, refreshHeatmapSummary } from "@/lib/date-filter-service";
 import { saveFilterPreference, loadFilterPreference, AnalyticsFilterState } from "@/lib/analytics-preferences";
@@ -70,8 +70,7 @@ const LimeDynamicHeatmap = forwardRef<LimeDynamicHeatmapRef>((props, ref) => {
 
   const { user } = useAuth();
   const { toast } = useToast();
-  // 🚩 FLAG: useTheme from next-themes → Appearance.getColorScheme()
-  const isDarkMode = Appearance.getColorScheme() === 'dark';
+  const { isDark: isDarkMode } = useTheme();
   const { subscriptionTier, getFeatureLimits } = useSubscription();
 
   const getDataRangeLimit = () => {
@@ -417,7 +416,7 @@ const LimeDynamicHeatmap = forwardRef<LimeDynamicHeatmapRef>((props, ref) => {
       description="Advanced heatmap analytics with custom time filtering, data uploads, and detailed performance insights."
     >
       {/* 🚩 FLAG: <Card> wraps <View> layout — Card/CardHeader/CardContent are native-compatible */}
-      <Card className="shadow-md border-opacity-50">
+      <Card style={{ borderColor: "#e5e7eb" }}>
         <CardHeader className="pb-4">
           <View className="flex-row items-center justify-between">
             <View>

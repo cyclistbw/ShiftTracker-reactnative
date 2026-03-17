@@ -15,7 +15,7 @@ export const formatCurrency = (amount: number) => {
  */
 export const formatCurrencyWithContentMode = (amount: number, hideIncome: boolean): string => {
   if (hideIncome) {
-    return "***";
+    return "$••••";
   }
   return formatCurrency(amount);
 };

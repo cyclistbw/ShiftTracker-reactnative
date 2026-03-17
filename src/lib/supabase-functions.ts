@@ -93,13 +93,7 @@ export const syncShiftToSupabase = async (
             earnings: shift.income,
             miles_driven: milesDriven,
             tasks_completed: shift.tasksCompleted || 0,
-            platform: shift.platform || null, // Add platform field
-            // Add wellness fields
-            mood_score: shift.moodScore || null,
-            energy_level: shift.energyLevel || null,
-            stress_level: shift.stressLevel || null,
-          wellness_notes: shift.wellnessNotes || null,
-          wellness_checked_in_at: shift.wellnessCheckedInAt ? shift.wellnessCheckedInAt : null,
+            platform: shift.platform || null,
           is_mileage_only: shift.isMileageOnly || false,
           summary_data: JSON.stringify({
               shift: {
@@ -139,13 +133,7 @@ export const syncShiftToSupabase = async (
           earnings: shift.income,
           miles_driven: milesDriven,
           tasks_completed: shift.tasksCompleted || 0,
-          platform: shift.platform || null, // Add platform field
-          // Add wellness fields
-          mood_score: shift.moodScore || null,
-          energy_level: shift.energyLevel || null,
-          stress_level: shift.stressLevel || null,
-          wellness_notes: shift.wellnessNotes || null,
-          wellness_checked_in_at: shift.wellnessCheckedInAt ? shift.wellnessCheckedInAt : null,
+          platform: shift.platform || null,
           is_mileage_only: shift.isMileageOnly || false,
           summary_data: JSON.stringify({
             shift: {
@@ -182,13 +170,7 @@ export const syncShiftToSupabase = async (
       earnings: shift.income,
       miles_driven: milesDriven,
       tasks_completed: shift.tasksCompleted || 0,
-      platform: shift.platform || null, // Add platform field
-      // Add wellness fields
-      mood_score: shift.moodScore || null,
-      energy_level: shift.energyLevel || null,
-      stress_level: shift.stressLevel || null,
-      wellness_notes: shift.wellnessNotes || null,
-      wellness_checked_in_at: shift.wellnessCheckedInAt ? shift.wellnessCheckedInAt : null,
+      platform: shift.platform || null,
       is_mileage_only: shift.isMileageOnly || false,
       summary_data: JSON.stringify({
         shift: {

@@ -2,6 +2,7 @@
 import * as React from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { cn } from "@/lib/utils";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 
 interface TabsContextValue {
   value: string;
@@ -59,15 +60,25 @@ interface TabsTriggerProps {
 
 function TabsTrigger({ value, className, children, disabled }: TabsTriggerProps) {
   const { value: activeValue, onValueChange } = React.useContext(TabsContext);
+  const { isDark } = useTheme();
   const isActive = activeValue === value;
+  const themeColors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
 
   return (
     <Pressable
       onPress={() => !disabled && onValueChange(value)}
       disabled={disabled}
+      // bg-background (= var(--background)) and shadow are in style prop, not className.
+      // Reason: inactive tabs start with NO CSS-variable class on their Pressable. Adding
+      // bg-background after first render would trigger a NativeWind variables-upgrade with
+      // canUpgradeWarn=true, causing printUpgradeWarning → stringify → NavigationStateContext
+      // getter crash. Plain style props bypass NativeWind entirely.
+      style={isActive ? {
+        backgroundColor: themeColors.background,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 1, elevation: 1,
+      } : undefined}
       className={cn(
         "flex-1 items-center justify-center rounded-sm px-2 py-1.5 mx-0.5",
-        isActive && "bg-background shadow-sm",
         disabled && "opacity-50",
         className
       )}
@@ -92,10 +103,30 @@ interface TabsContentProps {
 
 function TabsContent({ value, className, children }: TabsContentProps) {
   const { value: activeValue } = React.useContext(TabsContext);
-  if (activeValue !== value) return null;
+  const isActive = activeValue === value;
+
+  // Lazy-mount: only render after this tab has been activated at least once,
+  // then keep it mounted and hide with display:none. This mirrors React Navigation's
+  // own lazy-tab pattern and avoids mounting hidden chart components prematurely.
+  const [hasBeenActive, setHasBeenActive] = React.useState(isActive);
+
+  React.useEffect(() => {
+    if (isActive && !hasBeenActive) {
+      setHasBeenActive(true);
+    }
+  }, [isActive]);
+
+  if (!hasBeenActive) {
+    return null;
+  }
 
   return (
-    <View className={cn("mt-2", className)}>{children}</View>
+    <View
+      className={cn("mt-2", className)}
+      style={{ display: isActive ? "flex" : "none" }}
+    >
+      {children}
+    </View>
   );
 }
 

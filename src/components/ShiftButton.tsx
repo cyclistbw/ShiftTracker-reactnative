@@ -64,13 +64,13 @@ const ShiftButton = ({
       {isActive && !isPaused && (
         <Animated.View
           style={{ transform: [{ scale: pulseAnim }] }}
-          className="absolute w-28 h-28 rounded-full bg-red-300 opacity-40"
+          className="absolute w-44 h-44 rounded-full bg-red-300 opacity-40"
         />
       )}
       <Pressable
         onPress={handlePress}
         className={cn(
-          "w-28 h-28 rounded-full shadow-lg items-center justify-center",
+          "w-40 h-40 rounded-full shadow-lg items-center justify-center",
           bgColor
         )}
       >
@@ -78,24 +78,24 @@ const ShiftButton = ({
           {isActive ? (
             isPaused ? (
               <>
-                <Play size={32} color="#ffffff" />
-                <Text className="text-white font-semibold text-sm mt-1">Resume</Text>
+                <Play size={48} color="#ffffff" />
+                <Text className="text-white font-semibold text-base mt-2">Resume</Text>
               </>
             ) : isMileageOnly ? (
               <>
-                <Square size={32} color="#ffffff" />
-                <Text className="text-white font-semibold text-sm mt-1">End Tracking</Text>
+                <Square size={48} color="#ffffff" />
+                <Text className="text-white font-semibold text-base mt-2">End Tracking</Text>
               </>
             ) : (
               <>
-                <Pause size={32} color="#ffffff" />
-                <Text className="text-white font-semibold text-sm mt-1">Pause</Text>
+                <Pause size={48} color="#ffffff" />
+                <Text className="text-white font-semibold text-base mt-2">Pause</Text>
               </>
             )
           ) : (
             <>
-              <Play size={32} color="#ffffff" />
-              <Text className="text-white font-semibold text-sm mt-1">Start Shift</Text>
+              <Play size={48} color="#ffffff" />
+              <Text className="text-white font-semibold text-base mt-2">Start Shift</Text>
             </>
           )}
         </View>

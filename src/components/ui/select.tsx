@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { ChevronDown, Check } from "lucide-react-native";
 import { cn } from "@/lib/utils";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 
 interface SelectContextValue {
   value?: string;
-  onValueChange?: (value: string) => void;
+  selectedLabel?: string;
+  onValueChange?: (value: string, label?: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
 }
@@ -33,17 +35,19 @@ interface SelectProps {
 function Select({ value, onValueChange, defaultValue, children }: SelectProps) {
   const [open, setOpen] = React.useState(false);
   const [internalValue, setInternalValue] = React.useState(defaultValue);
+  const [selectedLabel, setSelectedLabel] = React.useState<string | undefined>();
 
   const effectiveValue = value ?? internalValue;
-  const handleChange = (v: string) => {
+  const handleChange = (v: string, label?: string) => {
     setInternalValue(v);
+    setSelectedLabel(label);
     onValueChange?.(v);
     setOpen(false);
   };
 
   return (
     <SelectContext.Provider
-      value={{ value: effectiveValue, onValueChange: handleChange, open, setOpen }}
+      value={{ value: effectiveValue, selectedLabel, onValueChange: handleChange, open, setOpen }}
     >
       {children}
     </SelectContext.Provider>
@@ -81,8 +85,8 @@ function SelectValue({
   displayValue?: string;
   className?: string;
 }) {
-  const { value } = React.useContext(SelectContext);
-  const label = displayValue ?? value;
+  const { value, selectedLabel } = React.useContext(SelectContext);
+  const label = displayValue ?? selectedLabel ?? value;
   return (
     <Text
       className={cn(
@@ -98,6 +102,8 @@ function SelectValue({
 
 function SelectContent({ className, children }: { className?: string; children?: React.ReactNode }) {
   const { open, setOpen } = React.useContext(SelectContext);
+  const { isDark } = useTheme();
+  const colors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   return (
     <Modal
       visible={open}
@@ -109,7 +115,7 @@ function SelectContent({ className, children }: { className?: string; children?:
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>
           <TouchableWithoutFeedback>
             <View
-              style={{ backgroundColor: "#ffffff", borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", maxHeight: 384, width: "80%" }}
+              style={{ backgroundColor: colors.card, borderRadius: 8, borderWidth: 1, borderColor: colors.border, maxHeight: 384, width: "80%" }}
               className={className}
             >
               <ScrollView>{children}</ScrollView>
@@ -130,22 +136,24 @@ interface SelectItemProps {
 
 function SelectItem({ value, className, children, disabled }: SelectItemProps) {
   const { value: selectedValue, onValueChange } = React.useContext(SelectContext);
+  const { isDark } = useTheme();
+  const colors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   const isSelected = selectedValue === value;
 
   return (
     <Pressable
-      onPress={() => !disabled && onValueChange?.(value)}
+      onPress={() => !disabled && onValueChange?.(value, typeof children === "string" ? children : undefined)}
       disabled={disabled}
+      style={isSelected ? { backgroundColor: colors.muted } : undefined}
       className={cn(
         "flex flex-row items-center px-3 py-3",
-        isSelected && "bg-accent",
         disabled && "opacity-50",
         className
       )}
     >
-      <View className="mr-2 w-4">{isSelected && <Check size={14} />}</View>
+      <View className="mr-2 w-4">{isSelected && <Check size={14} color={colors.foreground} />}</View>
       {typeof children === "string" ? (
-        <Text className="flex-1 text-sm text-foreground">{children}</Text>
+        <Text style={{ color: colors.foreground }} className="flex-1 text-sm">{children}</Text>
       ) : (
         <View className="flex-1">{children}</View>
       )}

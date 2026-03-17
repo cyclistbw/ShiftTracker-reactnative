@@ -192,6 +192,13 @@ export const getFilteredShifts = (shifts: Shift[], timePeriod: string): Shift[] 
       }
       case "ytd":
         return isThisYear(shift.startTime);
+      case "prevYear": {
+        const prevYear = subYears(now, 1);
+        return isWithinInterval(shift.startTime, {
+          start: startOfYear(prevYear),
+          end: endOfYear(prevYear),
+        });
+      }
       case "year":
         return shift.startTime >= subYears(now, 1);
       default:

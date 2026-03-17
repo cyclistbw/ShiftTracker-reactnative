@@ -3,7 +3,7 @@
 // 🚩 FLAG: <div>/<p>/<h2>/<button> -> <View>/<Text>/<Button>
 // 🚩 FLAG: onClick -> onPress
 import { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, ScrollView } from "react-native";
 import GigAnalytics from "@/components/GigAnalytics";
 import { useAuth } from "@/context/AuthContext";
 import { useAnalyticsData } from "@/hooks/useAnalyticsData";
@@ -114,7 +114,9 @@ const Analytics = () => {
 
   return (
     <View className="flex-1 bg-background">
-      <GigAnalytics />
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+        <GigAnalytics />
+      </ScrollView>
     </View>
   );
 };

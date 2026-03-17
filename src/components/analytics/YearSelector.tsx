@@ -92,7 +92,7 @@ const YearSelector: React.FC<YearSelectorProps> = ({
         <SelectContent>
           {availableYears.map((year) => (
             <SelectItem key={year} value={year.toString()}>
-              {year}
+              {year.toString()}
             </SelectItem>
           ))}
         </SelectContent>

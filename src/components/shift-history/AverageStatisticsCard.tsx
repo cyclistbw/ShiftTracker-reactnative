@@ -4,6 +4,7 @@ import { View, Text } from "react-native";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftSummary, Shift } from "@/types/shift";
 import { useContentMode } from "@/context/ContentModeContext";
+import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 import { formatCurrencyWithContentMode } from "@/utils/analytics-utils";
 
 interface AverageStatisticsCardProps {
@@ -70,8 +71,16 @@ const AverageStatisticsCard = ({ summary, shifts }: AverageStatisticsCardProps) 
 };
 
 function StatBox({ label, value }: { label: string; value: string }) {
+  // bg-muted/50 and border-border/50 use opacity modifiers on CSS-variable tokens.
+  // NativeWind can't apply /50 to var(--token) at runtime (hex values don't support
+  // CSS alpha syntax), so colors break on theme switch. Use explicit style props instead.
+  const { isDark } = useTheme();
+  const colors = isDark ? THEME_COLORS.dark : THEME_COLORS.light;
   return (
-    <View className="w-[45%] items-center p-3 bg-muted/50 rounded-lg border border-border/50">
+    <View
+      className="w-[45%] items-center p-3 rounded-lg"
+      style={{ backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}
+    >
       <Text className="text-sm text-muted-foreground mb-1">{label}</Text>
       <Text className="font-medium text-foreground">{value}</Text>
     </View>

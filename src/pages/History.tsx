@@ -2,6 +2,8 @@
 // 🚩 FLAG: animate-pulse Loading -> ActivityIndicator
 // 🚩 FLAG: <div> -> <View>
 import { View, ScrollView, ActivityIndicator } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import ShiftHistory from "@/components/ShiftHistory";
 import { useAuth } from "@/context/AuthContext";
 import { useShiftHistory } from "@/hooks/useShiftHistory";
@@ -17,6 +19,8 @@ const History = () => {
     timePeriod, dateRange, setDateRange,
     handleTimePeriodChange, loadShifts, maxHistoryDays
   } = useShiftHistory();
+
+  useFocusEffect(useCallback(() => { loadShifts(); }, []));
 
   const dateRangeDisplay = getDateRangeForPeriod(timePeriod, dateRange?.from, dateRange?.to);
 

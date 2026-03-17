@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rn \"from ''@react-navigation\\\\|require\\(''@react-navigation\\\\|from \"\"@react-navigation\\\\|require\\(\"\"@react-navigation\" \"c:\\\\Users\\\\cycli\\\\ShiftTrackergit\\\\shift-tracker-native\\\\src\")",
+      "Bash(grep \"index\\\\|\\\\.js$\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\(''main'',''''\\) or d.get\\(''exports'',''''\\)\\)\")",
+      "Bash(node -e \"const nw = require\\(''./node_modules/nativewind''\\); console.log\\(Object.keys\\(nw\\).filter\\(k => k !== ''default''\\).join\\('', ''\\)\\)\")",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/nativewind/package.json''\\); console.log\\(''version:'', pkg.version\\)\")",
+      "Bash(node -e \"var nw = require\\(''./node_modules/nativewind''\\); console.log\\(Object.keys\\(nw\\).join\\('', ''\\)\\)\")"
+    ]
+  }
+}

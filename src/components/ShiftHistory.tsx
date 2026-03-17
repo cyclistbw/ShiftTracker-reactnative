@@ -1,7 +1,7 @@
 // 🚩 FLAG: <div>/<span> → <View>/<Text>; Dialog/AlertDialog → Modal-based components
 // 🚩 FLAG: <img src> → <Image source={{ uri }} />; window.location.href debug logs removed
 // 🚩 FLAG: saveShifts/getShifts now async (AsyncStorage); must be awaited
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, Modal, TouchableWithoutFeedback, ScrollView } from "react-native";
 import { appLogger } from "@/lib/app-logger";
 import { Shift, ShiftSummary } from "@/types/shift";
@@ -41,7 +41,7 @@ import ShiftDayGroup from "./shift-history/ShiftDayGroup";
 import EditShiftDialog, { ShiftFormValues } from "./shift-history/EditShiftDialog";
 import EditExpenseDialog from "./shift-history/EditExpenseDialog";
 
-type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "year" | "dateRange";
+type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
 interface ShiftHistoryProps {
   shifts: Shift[];
@@ -104,6 +104,7 @@ const ShiftHistory = ({
     mileDeduction: 0,
   });
   const [groupedShifts, setGroupedShifts] = useState<DayShiftGroup[]>([]);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [syncingShift, setSyncingShift] = useState<string | null>(null);
   const [savingShift, setSavingShift] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
@@ -461,11 +462,14 @@ const ShiftHistory = ({
     }
   };
 
-  const toggleDayExpansion = (index: number) => {
-    const updated = [...groupedShifts];
-    updated[index].expanded = !updated[index].expanded;
-    setGroupedShifts(updated);
-  };
+  const toggleDayExpansion = useCallback((dateKey: string) => {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
+  }, []);
 
   const handleAddExpenseToShift = (shift: Shift) => {
     setSelectedExpenseShift(shift);
@@ -537,7 +541,7 @@ const ShiftHistory = ({
   const displaySummary = shifts.length === 0 ? emptySummary : summary;
 
   return (
-    <View className="space-y-6">
+    <View className="gap-6">
       <ShiftSummaryCard
         summary={displaySummary}
         dateRange={dateRange}
@@ -552,13 +556,15 @@ const ShiftHistory = ({
           <Text className="text-gray-500">No completed shifts yet</Text>
         </View>
       ) : (
-        <View className="space-y-4">
+        <View className="gap-4">
           <Text className="font-medium text-lg text-foreground">Shift History</Text>
-          {groupedShifts.map((dayGroup, index) => (
-            <ShiftDayGroup
-              key={format(dayGroup.date, "yyyy-MM-dd")}
+          {groupedShifts.map((dayGroup) => {
+            const dateKey = format(dayGroup.date, "yyyy-MM-dd");
+            return <ShiftDayGroup
+              key={dateKey}
               dayGroup={dayGroup}
-              onToggleExpansion={() => toggleDayExpansion(index)}
+              expanded={expandedDays.has(dateKey)}
+              onToggleExpansion={() => toggleDayExpansion(dateKey)}
               databaseExpenses={databaseExpenses}
               onEditShift={handleEditClick}
               onDeleteShift={handleDeleteClick}
@@ -570,8 +576,8 @@ const ShiftHistory = ({
               syncingShift={syncingShift}
               deletingShift={deletingShift}
               deletingExpense={deletingExpense}
-            />
-          ))}
+            />;
+          })}
         </View>
       )}
 

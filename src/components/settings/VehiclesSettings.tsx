@@ -25,6 +25,17 @@ import { useVehicles, Vehicle } from "@/hooks/useVehicles";
 import { useAuth } from "@/context/AuthContext";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 
+// IRS standard mileage rates by tax year
+const IRS_MILEAGE_RATES: Record<string, number> = {
+  '2020': 0.575,
+  '2021': 0.56,
+  '2022': 0.625,
+  '2023': 0.655,
+  '2024': 0.67,
+  '2025': 0.70,
+  '2026': 0.725,
+};
+
 const VehiclesSettings = () => {
   const { user } = useAuth();
   const { settings: businessSettings } = useBusinessSettings();
@@ -33,6 +44,8 @@ const VehiclesSettings = () => {
   const [isVehicleDialogOpen, setIsVehicleDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const currentYear = new Date().getFullYear();
+  const taxYear = businessSettings?.currentTaxYear || currentYear.toString();
+  const irsRate = IRS_MILEAGE_RATES[taxYear] ?? businessSettings?.defaultMileageRate ?? 0.725;
 
   if (loading) {
     return (
@@ -65,7 +78,7 @@ const VehiclesSettings = () => {
       model: "",
       year: new Date().getFullYear().toString(),
       isDefault: vehicles.length === 0,
-      mileageRate: businessSettings?.defaultMileageRate || 0.655,
+      mileageRate: irsRate,
     };
     setEditingVehicle(newVehicle);
     setIsVehicleDialogOpen(true);
@@ -201,13 +214,16 @@ const VehiclesSettings = () => {
                         <Input
                           // 🚩 FLAG: type="number" step="0.001" → keyboardType="decimal-pad"
                           keyboardType="decimal-pad"
-                          placeholder="e.g. 0.655"
+                          placeholder={`e.g. ${irsRate}`}
                           value={editingVehicle?.mileageRate?.toString() || ''}
                           onChangeText={(text) => setEditingVehicle(prev =>
                             prev ? { ...prev, mileageRate: parseFloat(text) || 0 } : null
                           )}
                           className="mt-1"
                         />
+                        <Text className="text-xs text-muted-foreground mt-1">
+                          IRS standard rate for {taxYear}: ${irsRate}/mile
+                        </Text>
                       </View>
 
                       {/* Start Year Mileage */}
@@ -275,44 +291,36 @@ const VehiclesSettings = () => {
             {vehicles.length === 0 ? (
               <Text className="text-muted-foreground">No vehicles added yet. Add a vehicle to track mileage.</Text>
             ) : (
-              vehicles.map(vehicle => (
-                <Card key={vehicle.id} className="overflow-hidden">
+              [...vehicles].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0)).map(vehicle => (
+                <Card key={vehicle.id} className="overflow-hidden" style={vehicle.isDefault ? { borderColor: '#84cc16', borderWidth: 2 } : undefined}>
                   <CardContent className="p-4">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center space-x-3 flex-1">
                         {/* 🚩 FLAG: inline SVG → lucide-react-native Car icon */}
-                        <View className="bg-muted p-2 rounded-full">
-                          <Car size={20} color="#374151" />
+                        <View className="p-2">
+                          <Car size={20} color={vehicle.isDefault ? "#84cc16" : "#6b7280"} />
                         </View>
                         <View className="flex-1">
                           <View className="flex-row items-center">
                             <Text className="font-medium text-foreground">{vehicle.name}</Text>
                             {vehicle.isDefault && (
-                              <View className="ml-2 bg-muted rounded px-2 py-0.5">
-                                <Text className="text-xs text-muted-foreground">Default</Text>
+                              <View className="ml-2 bg-lime-500 rounded px-2 py-0.5">
+                                <Text className="text-xs text-white font-medium">Default</Text>
                               </View>
                             )}
                           </View>
                           <Text className="text-sm text-muted-foreground">
-                            {vehicle.make} {vehicle.model} {vehicle.year} • ${vehicle.mileageRate}/mile
+                            {vehicle.make} {vehicle.model} {vehicle.year}
                           </Text>
-                          {(vehicle.startYearMileage !== undefined || vehicle.endYearMileage !== undefined) && (
-                            <Text className="text-xs text-muted-foreground mt-1">
-                              {vehicle.startYearMileage !== undefined && vehicle.startYearMileage !== null
-                                ? `Start of ${currentYear}: ${vehicle.startYearMileage.toLocaleString()} miles`
-                                : ''
-                              }
-                              {vehicle.startYearMileage !== undefined && vehicle.startYearMileage !== null &&
-                               vehicle.endYearMileage !== undefined && vehicle.endYearMileage !== null
-                                ? ' • '
-                                : ''
-                              }
-                              {vehicle.endYearMileage !== undefined && vehicle.endYearMileage !== null
-                                ? `End of ${currentYear}: ${vehicle.endYearMileage.toLocaleString()} miles`
-                                : ''
-                              }
-                            </Text>
-                          )}
+                          <Text className="text-sm text-muted-foreground">
+                            ${vehicle.mileageRate}/mile
+                          </Text>
+                          <Text className="text-xs text-muted-foreground mt-1">
+                            {`Start of ${currentYear}: ${vehicle.startYearMileage != null ? vehicle.startYearMileage.toLocaleString() + ' miles' : '—'}`}
+                          </Text>
+                          <Text className="text-xs text-muted-foreground">
+                            {`End of ${currentYear}: ${vehicle.endYearMileage != null ? vehicle.endYearMileage.toLocaleString() + ' miles' : '—'}`}
+                          </Text>
                         </View>
                       </View>
 

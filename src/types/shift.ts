@@ -62,12 +62,6 @@ export interface Shift {
   isMileageOnly?: boolean; // Flag for mileage-only tracking (no time/income)
   tasksCompleted?: number; // Number of tasks completed during the shift
   platform?: string; // The gig app(s) used for this shift - comma-separated for multi-apping (e.g., "Uber, Lime, DoorDash")
-  // Wellness check-in fields
-  moodScore?: number;
-  energyLevel?: number;
-  stressLevel?: number;
-  wellnessNotes?: string;
-  wellnessCheckedInAt?: string;
 }
 
 export type ShiftSummary = {

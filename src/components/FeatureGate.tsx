@@ -1,13 +1,12 @@
 // 🚩 FLAG: useNavigate → useNavigation; <div> → <View>; <span> → <Text>
 // 🚩 FLAG: Capacitor.isNativePlatform() → always true in RN (removed import)
 import { ReactNode } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text } from "react-native";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Zap, Crown, ExternalLink, Clock } from "lucide-react-native";
-import { useShiftBuddyTrial } from "@/hooks/useShiftBuddyTrial";
+import { Lock, Zap, Crown, ExternalLink } from "lucide-react-native";
 
 type FeatureGateProps = {
   feature: string;
@@ -26,70 +25,7 @@ export function FeatureGate({
   title,
   description,
 }: FeatureGateProps) {
-  const { canAccessFeature, subscriptionTier, createCheckoutSession } = useSubscription();
-  const { isTrialActive, trialDaysRemaining, trialExpired, isLoading } = useShiftBuddyTrial();
-
-  // Special handling for ShiftBuddy trial
-  if (feature === "shiftbuddy" && subscriptionTier === "free") {
-    if (isLoading) {
-      return (
-        <View className="items-center p-4">
-          <ActivityIndicator />
-          <Text className="text-sm text-muted-foreground mt-2">Loading trial status...</Text>
-        </View>
-      );
-    }
-
-    if (isTrialActive) {
-      return (
-        <View className="space-y-4">
-          <View className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-            <View className="flex-row items-center gap-2">
-              <Clock size={16} color="#c2410c" />
-              <Text className="font-medium text-orange-700">
-                ShiftBuddy Trial: {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"} remaining
-              </Text>
-            </View>
-            <Text className="text-xs text-orange-600 mt-1">
-              Upgrade to Pro to continue using ShiftBuddy after your trial
-            </Text>
-          </View>
-          {children}
-        </View>
-      );
-    }
-
-    if (trialExpired) {
-      if (fallback) return <>{fallback}</>;
-      return (
-        <Card className="w-full max-w-md mx-auto">
-          <CardHeader>
-            <View className="items-center mb-4">
-              <View className="p-3 bg-orange-100 rounded-full">
-                <Clock size={24} color="#ea580c" />
-              </View>
-            </View>
-            <CardTitle>Trial Expired</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Text className="text-muted-foreground text-center mb-4">
-              Your 7-day ShiftBuddy trial has ended. Upgrade to Pro to continue using ShiftBuddy and unlock all premium features.
-            </Text>
-            <Button
-              onPress={async () => {
-                await createCheckoutSession("price_1RlsgT06hf9LhstgsnkDTSZG", "pro");
-              }}
-              className="w-full"
-              size="lg"
-            >
-              Upgrade to Pro
-            </Button>
-            <Text className="text-xs text-muted-foreground text-center mt-2">7-day Trial</Text>
-          </CardContent>
-        </Card>
-      );
-    }
-  }
+  const { canAccessFeature, createCheckoutSession } = useSubscription();
 
   if (canAccessFeature(feature)) {
     return <>{children}</>;

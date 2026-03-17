@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      await AsyncStorage.removeMany(keysToRemove);
+      await AsyncStorage.multiRemove(keysToRemove);
 
       setSession(null);
       setUser(null);

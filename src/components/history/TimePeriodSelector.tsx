@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { useSubscription } from "@/context/SubscriptionContext";
 
 export type DateRange = { from?: Date; to?: Date };
-type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "year" | "dateRange";
+type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
 interface TimePeriodSelectorProps {
   timePeriod: TimePeriod;
@@ -40,7 +40,7 @@ const TimePeriodSelector = ({
     month: "This Month",
     prevMonth: "Previous Month",
     ytd: "Year to Date",
-    year: "Last 12 Months",
+    prevYear: "Previous Year",
     dateRange: "Date Range",
   };
 
@@ -85,7 +85,7 @@ const TimePeriodSelector = ({
                 <SelectItem value="month">This Month</SelectItem>
                 <SelectItem value="prevMonth">Previous Month</SelectItem>
                 <SelectItem value="ytd">Year to Date</SelectItem>
-                <SelectItem value="year">Last 12 Months</SelectItem>
+                <SelectItem value="prevYear">Previous Year</SelectItem>
               </>
             )}
             {maxHistoryDays === 7 && (

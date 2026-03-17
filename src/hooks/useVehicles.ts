@@ -35,18 +35,49 @@ export const useVehicles = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user_vehicles')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+      const currentYear = new Date().getFullYear();
 
-      if (error) {
-        console.error("Error loading vehicles:", error);
+      const [vehiclesResult, shiftsResult] = await Promise.all([
+        supabase
+          .from('user_vehicles')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('shift_summaries')
+          .select('summary_data, end_time')
+          .eq('user_id', user.id)
+          .gte('end_time', `${currentYear}-01-01T00:00:00Z`)
+          .lte('end_time', `${currentYear}-12-31T23:59:59Z`)
+          .not('summary_data', 'is', null)
+          .order('end_time', { ascending: false }),
+      ]);
+
+      if (vehiclesResult.error) {
+        console.error("Error loading vehicles:", vehiclesResult.error);
         return;
       }
 
-      const mappedVehicles: Vehicle[] = data.map(vehicle => ({
+      // Build map of vehicleId -> most recent mileageEnd from completed shifts this year
+      const latestMileageEndByVehicle: Record<string, number> = {};
+      if (shiftsResult.data) {
+        for (const row of shiftsResult.data) {
+          try {
+            const shift = typeof row.summary_data === 'string'
+              ? JSON.parse(row.summary_data).shift
+              : row.summary_data?.shift;
+            const vehicleId: string | undefined = shift?.vehicleId;
+            const mileageEnd: number | null | undefined = shift?.mileageEnd;
+            if (vehicleId && mileageEnd != null && !(vehicleId in latestMileageEndByVehicle)) {
+              latestMileageEndByVehicle[vehicleId] = mileageEnd;
+            }
+          } catch {
+            // skip malformed rows
+          }
+        }
+      }
+
+      const mappedVehicles: Vehicle[] = vehiclesResult.data.map(vehicle => ({
         id: vehicle.id,
         name: vehicle.name,
         make: vehicle.make,
@@ -55,7 +86,9 @@ export const useVehicles = () => {
         isDefault: vehicle.is_default,
         mileageRate: vehicle.mileage_rate,
         startYearMileage: vehicle.start_year_mileage,
-        endYearMileage: vehicle.end_year_mileage,
+        endYearMileage: vehicle.id && latestMileageEndByVehicle[vehicle.id] != null
+          ? latestMileageEndByVehicle[vehicle.id]
+          : vehicle.end_year_mileage,
       }));
 
       setVehicles(mappedVehicles);

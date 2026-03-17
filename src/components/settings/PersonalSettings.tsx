@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useContentMode } from "@/context/ContentModeContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Heart, Crown, Zap, ExternalLink, Moon, Sun, EyeOff, LogOut, User, Eye, Trash2, BarChart3 } from "lucide-react-native";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
@@ -53,10 +54,11 @@ const SHOW_EMAIL_KEY = 'showEmail';
 
 const PersonalSettings = () => {
   const { user, signOut } = useAuth();
+  const { setThemeMode, isDark } = useTheme();
   const { settings, loading, saveSettings } = useBusinessSettings();
   const { subscriptionTier, subscribed, subscriptionEnd, openCustomerPortal, isLoading, hasFeature } = useSubscription();
   const { preferences, loading: preferencesLoading, updateContentMode, refreshPreferences } = useUserPreferences();
-  const { forceUpdate } = useContentMode();
+  const { setContentMode } = useContentMode();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -65,7 +67,6 @@ const PersonalSettings = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const [formData, setFormData] = useState({
-    enableWellnessCheckin: false,
     timezone: "America/New_York",
     clockFormat: "12-hour" as '12-hour' | '24-hour',
     darkModePreference: false,
@@ -82,13 +83,15 @@ const PersonalSettings = () => {
 
   useEffect(() => {
     if (settings && preferences && !loading && !preferencesLoading) {
+      const isDark = settings.darkModePreference === 'dark';
       setFormData({
-        enableWellnessCheckin: settings.enableWellnessCheckin || false,
         timezone: settings.timezone || "America/New_York",
         clockFormat: settings.clockFormat || "12-hour",
-        darkModePreference: settings.darkModePreference === 'dark',
+        darkModePreference: isDark,
         contentModeEnabled: preferences.content_mode_enabled || false,
       });
+      // Sync ThemeContext with the DB-persisted preference (authoritative source on login)
+      setThemeMode(isDark ? 'dark' : 'light');
       setHasChanges(false);
     }
   }, [settings, preferences, loading, preferencesLoading]);
@@ -104,26 +107,26 @@ const PersonalSettings = () => {
 
     const updatedSettings = {
       ...settings,
-      enableWellnessCheckin: formData.enableWellnessCheckin,
       timezone: formData.timezone,
       clockFormat: formData.clockFormat,
       darkModePreference: formData.darkModePreference ? 'dark' : 'light' as 'light' | 'dark' | 'system',
     };
 
-    const settingsSuccess = await saveSettings(updatedSettings);
-    const contentModeSuccess = await updateContentMode(formData.contentModeEnabled);
+    const [settingsSuccess, contentModeSuccess] = await Promise.all([
+      saveSettings(updatedSettings),
+      updateContentMode(formData.contentModeEnabled),
+    ]);
 
     if (settingsSuccess && contentModeSuccess) {
-      // 🚩 FLAG: setTheme() from next-themes removed — theme handled at RN app level via Appearance/config
+      setThemeMode(formData.darkModePreference ? 'dark' : 'light');
       refreshPreferences();
-      forceUpdate();
+      setContentMode(formData.contentModeEnabled);
       setHasChanges(false);
-      toast({ title: 'Settings saved successfully' });
-    } else {
+    } else if (!settingsSuccess || !contentModeSuccess) {
       toast({ title: 'Failed to save some settings', variant: 'destructive' });
     }
     setIsSaving(false);
-  }, [settings, formData, hasChanges, saveSettings, updateContentMode, refreshPreferences, forceUpdate]);
+  }, [settings, formData, hasChanges, saveSettings, updateContentMode, refreshPreferences, setContentMode, setThemeMode]);
 
   const updateFormData = useCallback((field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -195,9 +198,9 @@ const PersonalSettings = () => {
 
   const getTierInfo = (tier: string) => {
     switch (tier) {
-      case 'pro': return { icon: Zap, color: '#2563eb', bgClass: 'bg-blue-50' };
-      case 'elite': return { icon: Crown, color: '#7c3aed', bgClass: 'bg-purple-50' };
-      default: return { icon: Heart, color: '#6b7280', bgClass: 'bg-gray-50' };
+      case 'pro': return { icon: Zap, color: isDark ? '#60a5fa' : '#2563eb', bgColor: isDark ? '#1e3a5f' : '#eff6ff' };
+      case 'elite': return { icon: Crown, color: isDark ? '#c084fc' : '#7c3aed', bgColor: isDark ? '#2e1a47' : '#f5f3ff' };
+      default: return { icon: Heart, color: isDark ? '#94a3b8' : '#6b7280', bgColor: isDark ? '#1e293b' : '#f9fafb' };
     }
   };
 
@@ -317,19 +320,19 @@ const PersonalSettings = () => {
               <Text className="text-lg font-medium text-foreground">Plan & Subscription</Text>
               {user?.email && (
                 <View className="flex-row items-center">
-                  <User size={16} color="#6b7280" />
+                  <User size={16} color={isDark ? '#94a3b8' : '#6b7280'} />
                   <Text className="text-sm text-muted-foreground ml-1 mr-2">
                     {showEmail ? user.email : maskEmail(user.email)}
                   </Text>
                   {/* 🚩 FLAG: <button> → <Pressable> */}
                   <Pressable onPress={() => setShowEmail(!showEmail)} className="p-1">
-                    {showEmail ? <EyeOff size={12} color="#6b7280" /> : <Eye size={12} color="#6b7280" />}
+                    {showEmail ? <EyeOff size={12} color={isDark ? '#94a3b8' : '#6b7280'} /> : <Eye size={12} color={isDark ? '#94a3b8' : '#6b7280'} />}
                   </Pressable>
                 </View>
               )}
             </View>
 
-            <View className={`p-4 rounded-lg ${tierInfo.bgClass} border border-border`}>
+            <View className="p-4 rounded-lg border border-border" style={{ backgroundColor: tierInfo.bgColor }}>
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-row items-center gap-2">
                   <TierIcon size={20} color={tierInfo.color} />
@@ -383,8 +386,8 @@ const PersonalSettings = () => {
                     disabled={isLoading}
                     className="flex-row items-center gap-2"
                   >
-                    <ExternalLink size={16} color="#374151" />
-                    <Text>{isLoading ? 'Loading...' : 'Manage Subscription'}</Text>
+                    <ExternalLink size={16} color={isDark ? '#94a3b8' : '#374151'} />
+                    <Text className="text-foreground">{isLoading ? 'Loading...' : 'Manage Subscription'}</Text>
                   </Button>
                 ) : (
                   // 🚩 FLAG: Dialog + DialogTrigger → Button opens Modal
@@ -458,7 +461,9 @@ const PersonalSettings = () => {
               </View>
               <Switch
                 checked={formData.darkModePreference}
-                onCheckedChange={(checked) => updateFormData('darkModePreference', checked)}
+                onCheckedChange={(checked) => {
+                  updateFormData('darkModePreference', checked);
+                }}
               />
             </View>
 
