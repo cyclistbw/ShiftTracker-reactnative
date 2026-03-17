@@ -32,6 +32,13 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# Claude
+.claude/
+
+# Logs
+expo.log
 
 # typescript
 *.tsbuildinfo
