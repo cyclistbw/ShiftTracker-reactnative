@@ -1,13 +1,14 @@
 import { View, Text, Image } from "react-native";
 
 interface AppLogoProps {
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 const sizes = {
   sm: { icon: 28, text: "text-lg" },
   md: { icon: 40, text: "text-2xl" },
   lg: { icon: 52, text: "text-3xl" },
+  xl: { icon: 72, text: "text-4xl" },
 };
 
 export default function AppLogo({ size = "md" }: AppLogoProps) {

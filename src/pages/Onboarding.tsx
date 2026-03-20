@@ -37,7 +37,7 @@ const Onboarding = () => {
   return (
     <View className="flex-1 bg-background px-6" style={{ paddingTop: 40, paddingBottom: 0 }}>
       <View className="items-center" style={{ paddingTop: 8 }}>
-        <AppLogo size="md" />
+        <AppLogo size="xl" />
       </View>
 
       <View className="flex-1 items-center justify-center">
