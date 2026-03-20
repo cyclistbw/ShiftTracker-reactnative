@@ -7,19 +7,28 @@ export interface InputProps extends TextInputProps {
 }
 
 export const Input = React.forwardRef<TextInput, InputProps>(
-  ({ className, placeholderTextColor, ...props }, ref) => {
+  ({ className, placeholderTextColor, style, ...props }, ref) => {
     return (
-      <TextInput
-        ref={ref}
-        className={cn(
-          "h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground",
-          "placeholder:text-muted-foreground",
-          props.editable === false && "opacity-50",
-          className
-        )}
-        placeholderTextColor={placeholderTextColor ?? "#9ca3af"}
-        {...props}
-      />
+      <View
+        style={{
+          borderRadius: 6,
+          overflow: "hidden",
+          backgroundColor: "#f7fee7",
+        }}
+      >
+        <TextInput
+          ref={ref}
+          className={cn(
+            "h-10 w-full rounded-md border border-input px-3 py-2 text-sm text-foreground",
+            "placeholder:text-muted-foreground",
+            props.editable === false && "opacity-50",
+            className
+          )}
+          style={[{ backgroundColor: "transparent" }, style]}
+          placeholderTextColor={placeholderTextColor ?? "#9ca3af"}
+          {...props}
+        />
+      </View>
     );
   }
 );
