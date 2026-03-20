@@ -15,8 +15,8 @@ export default function AppLogo({ size = "md" }: AppLogoProps) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Image
-        source={require("../../assets/icon.png")}
-        style={{ width: icon, height: icon, borderRadius: icon * 0.2 }}
+        source={require("../../assets/icon-transparent.png")}
+        style={{ width: icon, height: icon }}
       />
       <Text className={`${text} font-bold text-primary`}>
         ShiftTracker<Text className="text-base font-normal">™</Text>
