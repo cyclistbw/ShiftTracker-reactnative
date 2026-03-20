@@ -50,7 +50,7 @@ const Onboarding = () => {
         </Text>
       </View>
 
-      <View style={{ paddingBottom: 40, gap: 20 }}>
+      <View style={{ paddingBottom: 16, gap: 20 }}>
         {/* Page indicator dots */}
         <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 }}>
           {slides.map((_, i) => (
