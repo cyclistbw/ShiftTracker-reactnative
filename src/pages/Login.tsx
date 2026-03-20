@@ -3,7 +3,7 @@
 // FLAG: type=email -> keyboardType=email-address; type=password -> secureTextEntry
 // FLAG: button/Link -> Pressable/navigation.navigate; animate-spin -> ActivityIndicator; Checkbox -> Switch
 import { useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,26 +71,29 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" className="px-4">
         <View className="flex-1 items-center justify-center py-8">
           <Card className="w-full max-w-sm">
-            <CardHeader className="space-y-4">
+            <CardHeader style={{ gap: 16 }}>
               <View className="items-center">
-                <Text className="text-2xl font-bold text-primary">ShiftTracker</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Image source={require("../../assets/icon.png")} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                  <Text className="text-2xl font-bold text-primary">ShiftTracker<Text className="text-base font-normal">™</Text></Text>
+                </View>
               </View>
-              <View className="space-y-1">
+              <View style={{ gap: 4 }}>
                 <CardTitle className="text-xl text-center">Welcome back</CardTitle>
                 <CardDescription className="text-center">Sign in to your account to continue</CardDescription>
               </View>
             </CardHeader>
             <CardContent>
               {!showForgotPassword ? (
-                <View className="space-y-4">
+                <View style={{ gap: 16 }}>
                   {!!error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
                   {!!resetSuccess && <Alert><AlertDescription>{resetSuccess}</AlertDescription></Alert>}
 
-                  <View className="space-y-2">
+                  <View style={{ gap: 6 }}>
                     <Label>Email</Label>
                     <Input keyboardType="email-address" autoCapitalize="none" placeholder="Enter your email" value={email} onChangeText={setEmail} editable={!loading} />
                   </View>
-                  <View className="space-y-2">
+                  <View style={{ gap: 6 }}>
                     <Label>Password</Label>
                     <View className="relative">
                       <Input secureTextEntry={!showPassword} placeholder="Enter your password" value={password} onChangeText={setPassword} editable={!loading} />
@@ -106,7 +109,7 @@ export default function LoginScreen() {
                   <Button onPress={handleSubmit} className="w-full" disabled={loading}>
                     {loading ? <View className="flex-row items-center gap-2"><ActivityIndicator size="small" color="#fff" /><Text className="text-white">Signing in...</Text></View> : "Sign in"}
                   </Button>
-                  <View className="mt-4 items-center space-y-2">
+                  <View style={{ alignItems: "center", gap: 8, marginTop: 4 }}>
                     <Pressable onPress={() => setShowForgotPassword(true)}>
                       <Text className="text-sm text-blue-600">Forgot your password?</Text>
                     </Pressable>
@@ -119,16 +122,16 @@ export default function LoginScreen() {
                   </View>
                 </View>
               ) : (
-                <View className="space-y-4">
+                <View style={{ gap: 16 }}>
                   {!!error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-                  <View className="space-y-2">
+                  <View style={{ gap: 6 }}>
                     <Label>Email</Label>
                     <Input keyboardType="email-address" autoCapitalize="none" placeholder="Enter your email address" value={resetEmail} onChangeText={setResetEmail} editable={!resetLoading} />
                   </View>
                   <Button onPress={handleForgotPassword} className="w-full" disabled={resetLoading}>
                     {resetLoading ? <View className="flex-row items-center gap-2"><ActivityIndicator size="small" color="#fff" /><Text className="text-white">Sending...</Text></View> : "Send reset email"}
                   </Button>
-                  <View className="mt-4 items-center">
+                  <View style={{ alignItems: "center", marginTop: 4 }}>
                     <Pressable onPress={() => setShowForgotPassword(false)}>
                       <Text className="text-sm text-blue-600">Back to sign in</Text>
                     </Pressable>

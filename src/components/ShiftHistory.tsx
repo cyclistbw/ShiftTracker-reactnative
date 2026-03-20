@@ -79,7 +79,7 @@ const ShiftHistory = ({
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
   const [selectedExpenseShift, setSelectedExpenseShift] = useState<Shift | null>(null);
   const { settings } = useBusinessSettings();
-  const mileageRate = settings?.defaultMileageRate || 0.655;
+  const mileageRate = settings?.defaultMileageRate || 0.725;
 
   const closeAddExpenseDialog = () => {
     setAddExpenseDialogOpen(false);

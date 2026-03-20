@@ -109,7 +109,7 @@ export const deleteShift = async (shiftId: string): Promise<void> => {
 // Pure calculation helpers — no storage, unchanged from web
 export const calculateShiftSummary = (
   shift: Shift,
-  mileageRate = 0.655
+  mileageRate = 0.725
 ): ShiftSummary => {
   const endTime = shift.endTime || new Date();
   const durationMs = endTime.getTime() - shift.startTime.getTime();
@@ -136,7 +136,7 @@ export const calculateShiftSummary = (
 
 export const getHistorySummary = (
   shifts: Shift[],
-  mileageRate = 0.655
+  mileageRate = 0.725
 ): ShiftSummary => {
   const initial: ShiftSummary = {
     totalHours: 0,

@@ -70,7 +70,7 @@ export const useQuarterlyTaxReminder = (shifts: Shift[], enableReminders: boolea
     const now = new Date();
     const currentYear = now.getFullYear();
     const quarterEndDates = getQuarterEndDates(currentYear);
-    const mileageRate = settings?.defaultMileageRate || 0.655;
+    const mileageRate = settings?.defaultMileageRate || 0.725;
 
     const quarterlyData = getQuarterlyBreakdown(shifts, currentYear, mileageRate);
 

@@ -31,7 +31,7 @@ export const useBusinessSettings = () => {
     businessName: "My Business",
     businessType: "Sole Proprietorship",
     currentTaxYear: currentYear.toString(),
-    defaultMileageRate: 0.655,
+    defaultMileageRate: 0.725,
     rememberMePreference: false,
     mileageCalculationMethod: 'manual_odometer',
     gigPlatforms: [],

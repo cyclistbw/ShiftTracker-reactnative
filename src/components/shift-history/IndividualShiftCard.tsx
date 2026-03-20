@@ -44,7 +44,7 @@ const IndividualShiftCard = ({
 }: IndividualShiftCardProps) => {
   const { isContentModeEnabled } = useContentMode();
   const { settings } = useBusinessSettings();
-  const mileageRate = settings?.defaultMileageRate || 0.655;
+  const mileageRate = settings?.defaultMileageRate || 0.725;
 
   const formatCurrency = (amount: number) =>
     formatCurrencyWithContentMode(amount, isContentModeEnabled);

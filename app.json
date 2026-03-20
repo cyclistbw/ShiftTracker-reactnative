@@ -18,8 +18,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cyclistbw.shifttracker",
-      "buildNumber": "3",
+      "bundleIdentifier": "com.brendenwarn.shifttracker",
+      "buildNumber": "4",
       "config": {
         "usesNonExemptEncryption": false
       },

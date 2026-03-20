@@ -72,7 +72,7 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
   const chartRulesColor = isDark ? "#1e293b" : "#f3f4f6";
   const { settings } = useBusinessSettings();
   const { vehicles } = useVehicles();
-  const mileageRate = settings?.defaultMileageRate || 0.655;
+  const mileageRate = settings?.defaultMileageRate || 0.725;
 
   const availableYears = useMemo(() => getAvailableYears(shifts), [shifts]);
   const [selectedYear, setSelectedYear] = useState<number>(

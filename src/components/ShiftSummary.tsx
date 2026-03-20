@@ -29,7 +29,7 @@ const VEHICLES_STORAGE_KEY = "lime-tracker-vehicles";
 const ShiftSummary = ({ shift }: ShiftSummaryProps) => {
   const { isContentModeEnabled } = useContentMode();
   const { settings } = useBusinessSettings();
-  const mileageRate = settings?.defaultMileageRate || 0.655;
+  const mileageRate = settings?.defaultMileageRate || 0.725;
   const summary = calculateShiftSummary(shift, mileageRate);
   const [vehicleName, setVehicleName] = useState<string | null>(null);
   const [databaseExpenses, setDatabaseExpenses] = useState<DatabaseExpense[]>([]);

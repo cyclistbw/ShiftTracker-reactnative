@@ -32,7 +32,6 @@ export const requireAuthentication = async (): Promise<string> => {
     throw new Error("Authentication required. Please log in to continue.");
   }
   
-  console.log(`Authentication verified for user: ${user.email} (${user.id})`);
   return user.id;
 };
 
@@ -44,9 +43,7 @@ export const validateUserOwnership = (
     return false;
   }
   
-  const isValid = resourceUserId === currentUserId;
-  console.log(`User ownership validation: ${isValid} (resource: ${resourceUserId}, current: ${currentUserId})`);
-  return isValid;
+  return resourceUserId === currentUserId;
 };
 
 export const sanitizeUserInput = (input: string): string => {
@@ -71,6 +68,5 @@ export const withUserContext = async <T>(
   operation: (userId: string) => Promise<T>
 ): Promise<T> => {
   const userId = await requireAuthentication();
-  console.log(`Executing operation with user context: ${userId}`);
   return await operation(userId);
 };

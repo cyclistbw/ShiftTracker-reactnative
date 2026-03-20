@@ -25,7 +25,7 @@ export interface CategoryBreakdown {
   amount: number;
 }
 
-export const getYearlyReportData = (shifts: Shift[], year: number, mileageRate: number = 0.655): TaxReportData => {
+export const getYearlyReportData = (shifts: Shift[], year: number, mileageRate: number = 0.725): TaxReportData => {
   const yearShifts = shifts.filter(shift => {
     const shiftYear = shift.startTime.getFullYear();
     return shiftYear === year && shift.endTime && !shift.isActive;
@@ -62,7 +62,7 @@ export const getAvailableYears = (shifts: Shift[]): number[] => {
   return Array.from(years).sort((a, b) => b - a);
 };
 
-export const getQuarterlyBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.655): QuarterlyData[] => {
+export const getQuarterlyBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.725): QuarterlyData[] => {
   const quarters: QuarterlyData[] = [];
 
   for (let quarter = 1; quarter <= 4; quarter++) {
@@ -81,7 +81,7 @@ export const getQuarterlyBreakdown = (shifts: Shift[], year: number, mileageRate
   return quarters;
 };
 
-export const getMonthlyBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.655): MonthlyData[] => {
+export const getMonthlyBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.725): MonthlyData[] => {
   const months: MonthlyData[] = [];
 
   for (let month = 0; month < 12; month++) {
@@ -97,7 +97,7 @@ export const getMonthlyBreakdown = (shifts: Shift[], year: number, mileageRate: 
   return months;
 };
 
-export const getCategoryBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.655): CategoryBreakdown[] => {
+export const getCategoryBreakdown = (shifts: Shift[], year: number, mileageRate: number = 0.725): CategoryBreakdown[] => {
   const yearShifts = shifts.filter(shift => {
     const shiftYear = shift.startTime.getFullYear();
     return shiftYear === year && shift.endTime && !shift.isActive;
@@ -126,7 +126,7 @@ export const getCategoryBreakdown = (shifts: Shift[], year: number, mileageRate:
     .sort((a, b) => b.amount - a.amount);
 };
 
-const calculateSummaryForShifts = (shifts: Shift[], mileageRate: number = 0.655): TaxReportData => {
+const calculateSummaryForShifts = (shifts: Shift[], mileageRate: number = 0.725): TaxReportData => {
   const totalIncome = shifts.reduce((sum, shift) => sum + (shift.income || 0), 0);
   const totalExpenses = shifts.reduce((sum, shift) => {
     return sum + (shift.expenses?.reduce((expSum, exp) => expSum + exp.amount, 0) || 0);
