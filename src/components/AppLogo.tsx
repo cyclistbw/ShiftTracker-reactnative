@@ -18,7 +18,7 @@ export default function AppLogo({ size = "md" }: AppLogoProps) {
         source={require("../../assets/icon-transparent.png")}
         style={{ width: icon, height: icon }}
       />
-      <Text className={`${text} font-bold text-primary`}>
+      <Text className={`${text} font-bold text-foreground`}>
         ShiftTracker<Text className="text-base font-normal">™</Text>
       </Text>
     </View>
