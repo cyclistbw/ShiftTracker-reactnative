@@ -91,7 +91,7 @@ const VehiclesSettings = () => {
 
   const handleSaveVehicle = async () => {
     if (!editingVehicle) return;
-    const success = await saveVehicle(editingVehicle);
+    const success = await saveVehicle({ ...editingVehicle, mileageRate: irsRate });
     if (success) setIsVehicleDialogOpen(false);
   };
 
@@ -160,75 +160,64 @@ const VehiclesSettings = () => {
                     </Text>
                   </View>
                   <ScrollView className="max-h-[70vh] px-4" keyboardShouldPersistTaps="handled">
-                    <View className="py-4 space-y-4">
+                    <View style={{ paddingVertical: 16, gap: 16 }}>
                       {/* Vehicle Name */}
-                      <View>
-                        <Label className="mb-1">Vehicle Name</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>Vehicle Name</Label>
                         <Input
                           placeholder="e.g. My Car, Work Truck"
                           value={editingVehicle?.name || ''}
-                          // 🚩 FLAG: onChange e.target.value → onChangeText
                           onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, name: text } : null)}
-                          className="mt-1"
                         />
                       </View>
 
                       {/* Make */}
-                      <View>
-                        <Label className="mb-1">Make</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>Make</Label>
                         <Input
                           placeholder="e.g. Toyota, Ford"
                           value={editingVehicle?.make || ''}
                           onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, make: text } : null)}
-                          className="mt-1"
                         />
                       </View>
 
                       {/* Model */}
-                      <View>
-                        <Label className="mb-1">Model</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>Model</Label>
                         <Input
                           placeholder="e.g. Camry, F-150"
                           value={editingVehicle?.model || ''}
                           onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, model: text } : null)}
-                          className="mt-1"
                         />
                       </View>
 
                       {/* Year */}
-                      <View>
-                        <Label className="mb-1">Year</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>Year</Label>
                         <Input
                           placeholder="e.g. 2022"
-                          // 🚩 FLAG: type="number" → keyboardType="numeric"
                           keyboardType="numeric"
                           value={editingVehicle?.year || ''}
                           onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, year: text } : null)}
-                          className="mt-1"
                         />
                       </View>
 
-                      {/* Mileage Rate */}
-                      <View>
-                        <Label className="mb-1">Mileage Rate ($ per mile)</Label>
-                        <Input
-                          // 🚩 FLAG: type="number" step="0.001" → keyboardType="decimal-pad"
-                          keyboardType="decimal-pad"
-                          placeholder={`e.g. ${irsRate}`}
-                          value={editingVehicle?.mileageRate?.toString() || ''}
-                          onChangeText={(text) => setEditingVehicle(prev =>
-                            prev ? { ...prev, mileageRate: parseFloat(text) || 0 } : null
-                          )}
-                          className="mt-1"
-                        />
-                        <Text className="text-xs text-muted-foreground mt-1">
-                          IRS standard rate for {taxYear}: ${irsRate}/mile
+                      {/* IRS Mileage Rate (read-only) */}
+                      <View style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: 12 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#166534', marginBottom: 2 }}>
+                          Mileage Rate
+                        </Text>
+                        <Text style={{ fontSize: 15, color: '#15803d', fontWeight: '700' }}>
+                          ${irsRate}/mile
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                          IRS standard rate for {taxYear} — applied automatically
                         </Text>
                       </View>
 
                       {/* Start Year Mileage */}
-                      <View>
-                        <Label className="mb-1">Start of Year Mileage</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>Start of Year Mileage</Label>
                         <Input
                           keyboardType="numeric"
                           placeholder="e.g. 45000"
@@ -236,13 +225,12 @@ const VehiclesSettings = () => {
                           onChangeText={(text) => setEditingVehicle(prev =>
                             prev ? { ...prev, startYearMileage: text ? parseInt(text) : undefined } : null
                           )}
-                          className="mt-1"
                         />
                       </View>
 
                       {/* End Year Mileage */}
-                      <View>
-                        <Label className="mb-1">End of Year Mileage</Label>
+                      <View style={{ gap: 6 }}>
+                        <Label>End of Year Mileage</Label>
                         <Input
                           keyboardType="numeric"
                           placeholder="e.g. 52000"
@@ -250,12 +238,11 @@ const VehiclesSettings = () => {
                           onChangeText={(text) => setEditingVehicle(prev =>
                             prev ? { ...prev, endYearMileage: text ? parseInt(text) : undefined } : null
                           )}
-                          className="mt-1"
                         />
                       </View>
 
-                      {/* Is Default — 🚩 FLAG: <input type="checkbox"> → Switch */}
-                      <View className="flex-row items-center justify-between pt-2">
+                      {/* Is Default */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
                         <Label>Set as default vehicle</Label>
                         <Switch
                           checked={editingVehicle?.isDefault || false}
