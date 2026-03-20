@@ -5,23 +5,28 @@ interface AppLogoProps {
 }
 
 const sizes = {
-  sm: { icon: 28, text: "text-lg" },
-  md: { icon: 40, text: "text-2xl" },
-  lg: { icon: 52, text: "text-3xl" },
-  xl: { icon: 72, text: "text-4xl" },
+  sm: { icon: 28, fontSize: 18, tmSize: 10 },
+  md: { icon: 40, fontSize: 24, tmSize: 12 },
+  lg: { icon: 52, fontSize: 30, tmSize: 14 },
+  xl: { icon: 72, fontSize: 36, tmSize: 16 },
 };
 
 export default function AppLogo({ size = "md" }: AppLogoProps) {
-  const { icon, text } = sizes[size];
+  const { icon, fontSize, tmSize } = sizes[size];
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Image
         source={require("../../assets/icon-transparent.png")}
         style={{ width: icon, height: icon }}
       />
-      <Text className={`${text} font-bold text-foreground`}>
-        ShiftTracker<Text className="text-base font-normal">™</Text>
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+        <Text style={{ fontSize, fontWeight: "700", color: "#0f172a" }}>
+          ShiftTracker
+        </Text>
+        <Text style={{ fontSize: tmSize, fontWeight: "400", color: "#0f172a", marginTop: 4 }}>
+          ™
+        </Text>
+      </View>
     </View>
   );
 }
