@@ -56,9 +56,9 @@ export default function SignupScreen() {
   }
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-background" behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingVertical: 32 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-1 items-center justify-center">
+        <View className="flex-1 items-center">
           <Card className="w-full max-w-sm">
             <CardHeader style={{ gap: 16 }}>
               <View className="items-center">
