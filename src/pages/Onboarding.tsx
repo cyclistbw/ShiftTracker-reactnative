@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft, DollarSign, Clock, TrendingUp, Brain, Users } from "lucide-react-native";
 import AppLogo from "@/components/AppLogo";
@@ -19,6 +20,7 @@ const slides = [
 
 const Onboarding = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [currentSlide, setCurrentSlide] = useState(0);
   const isLastSlide = currentSlide === slides.length - 1;
   const slide = slides[currentSlide];
@@ -50,7 +52,7 @@ const Onboarding = () => {
         </Text>
       </View>
 
-      <View style={{ paddingBottom: 16, gap: 20 }}>
+      <View style={{ paddingBottom: insets.bottom + 16, gap: 20 }}>
         {/* Page indicator dots */}
         <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 }}>
           {slides.map((_, i) => (
