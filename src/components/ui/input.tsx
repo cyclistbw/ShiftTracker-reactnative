@@ -11,12 +11,18 @@ const AUTOFILL_BG = "#f7fee7";
 export const Input = React.forwardRef<TextInput, InputProps>(
   ({ className, placeholderTextColor, style, onChangeText, ...props }, ref) => {
     const [bgKey, setBgKey] = React.useState(0);
+    const prevLenRef = React.useRef(0);
 
     const handleChangeText = React.useCallback(
       (text: string) => {
-        // Force a re-render to reassert our background color after
-        // Samsung Pass / Android autofill applies its native yellow tint
-        if (Platform.OS === "android") setBgKey((k) => k + 1);
+        // Only remount (to clear Samsung Pass yellow tint) when autofill is
+        // detected — i.e. text jumped by more than 1 char at once.
+        // Remounting on every keystroke causes focus loss → keyboard dismissal.
+        if (Platform.OS === "android") {
+          const delta = Math.abs(text.length - prevLenRef.current);
+          if (delta > 1) setBgKey((k) => k + 1);
+          prevLenRef.current = text.length;
+        }
         onChangeText?.(text);
       },
       [onChangeText]
