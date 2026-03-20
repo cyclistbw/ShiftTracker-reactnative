@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ const IRS_MILEAGE_RATES: Record<string, number> = {
 };
 
 const VehiclesSettings = () => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { settings: businessSettings } = useBusinessSettings();
   const { vehicles, loading, saveVehicle, deleteVehicle, setDefaultVehicle } = useVehicles();
@@ -254,7 +256,7 @@ const VehiclesSettings = () => {
                     </View>
                   </ScrollView>
 
-                  <View className="flex-row justify-end gap-2 px-4 py-3 border-t border-border">
+                  <View className="flex-row justify-end gap-2 px-4 border-t border-border" style={{ paddingTop: 12, paddingBottom: insets.bottom + 12 }}>
                     <Button variant="outline" onPress={() => setIsVehicleDialogOpen(false)}>
                       Cancel
                     </Button>
