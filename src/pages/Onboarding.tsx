@@ -1,13 +1,13 @@
 // 🚩 FLAG: useNavigate -> useNavigation
 // 🚩 FLAG: navigate("/signup") -> navigation.navigate("Signup")
 // 🚩 FLAG: <div>/<h1>/<p>/<button> -> <View>/<Text>/<TouchableOpacity>
-// 🚩 FLAG: <img src> -> Text logo placeholder
 // 🚩 FLAG: onClick -> onPress
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft, DollarSign, Clock, TrendingUp, Brain, Users } from "lucide-react-native";
+import AppLogo from "@/components/AppLogo";
 
 const slides = [
   { icon: DollarSign, title: "Stop guessing how much you make", text: "Track every shift, every mile, and every dollar in one place." },
@@ -33,9 +33,9 @@ const Onboarding = () => {
   };
 
   return (
-    <View className="flex-1 bg-background px-6 py-10">
-      <View className="items-center pt-4">
-        <Text className="text-2xl font-bold text-primary">ShiftTracker</Text>
+    <View className="flex-1 bg-background px-6" style={{ paddingTop: 40, paddingBottom: 0 }}>
+      <View className="items-center" style={{ paddingTop: 8 }}>
+        <AppLogo size="md" />
       </View>
 
       <View className="flex-1 items-center justify-center">
@@ -50,18 +50,25 @@ const Onboarding = () => {
         </Text>
       </View>
 
-      <View className="w-full pb-6 space-y-6">
-        <View className="flex-row justify-center gap-2">
+      <View style={{ paddingBottom: 40, gap: 20 }}>
+        {/* Page indicator dots */}
+        <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 }}>
           {slides.map((_, i) => (
             <TouchableOpacity
               key={i}
               onPress={() => setCurrentSlide(i)}
-              style={{ height: 8, borderRadius: 4, width: i === currentSlide ? 32 : 8, backgroundColor: i === currentSlide ? "#16a34a" : "#9ca3af" }}
+              style={{
+                height: 10,
+                borderRadius: 5,
+                width: i === currentSlide ? 36 : 10,
+                backgroundColor: i === currentSlide ? "#16a34a" : "#d1d5db",
+              }}
             />
           ))}
         </View>
 
-        <View className="flex-row gap-3">
+        {/* Navigation buttons */}
+        <View style={{ flexDirection: "row", gap: 12 }}>
           {currentSlide > 0 && (
             <Button variant="outline" onPress={() => setCurrentSlide((s) => s - 1)} className="flex-1 flex-row items-center">
               <ChevronLeft size={16} />
@@ -74,12 +81,13 @@ const Onboarding = () => {
           </Button>
         </View>
 
+        {/* Skip */}
         {!isLastSlide ? (
-          <TouchableOpacity onPress={() => navigation.navigate("Signup")} className="items-center">
+          <TouchableOpacity onPress={() => navigation.navigate("Signup")} style={{ alignItems: "center" }}>
             <Text className="text-sm text-muted-foreground">Skip</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ height: 20 }} />
+          <View style={{ height: 4 }} />
         )}
       </View>
     </View>

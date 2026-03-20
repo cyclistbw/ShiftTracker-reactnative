@@ -3,7 +3,8 @@
 // FLAG: type=email -> keyboardType=email-address; type=password -> secureTextEntry
 // FLAG: button/Link -> Pressable/navigation.navigate; animate-spin -> ActivityIndicator; Checkbox -> Switch
 import { useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, Image } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import AppLogo from "@/components/AppLogo";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,10 +74,7 @@ export default function LoginScreen() {
           <Card className="w-full max-w-sm">
             <CardHeader style={{ gap: 16 }}>
               <View className="items-center">
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Image source={require("../../assets/icon.png")} style={{ width: 40, height: 40, borderRadius: 8 }} />
-                  <Text className="text-2xl font-bold text-primary">ShiftTracker<Text className="text-base font-normal">™</Text></Text>
-                </View>
+                <AppLogo size="md" />
               </View>
               <View style={{ gap: 4 }}>
                 <CardTitle className="text-xl text-center">Welcome back</CardTitle>

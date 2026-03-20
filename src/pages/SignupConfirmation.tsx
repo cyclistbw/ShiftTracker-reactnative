@@ -4,6 +4,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { View, Text } from "react-native";
 import { Card, CardContent } from "@/components/ui/card";
+import AppLogo from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
 
 const SignupConfirmation = () => {
@@ -15,7 +16,7 @@ const SignupConfirmation = () => {
         <CardContent className="pt-6">
           <View className="items-center">
             <View className="mb-6">
-              <Text className="text-2xl font-bold text-primary">ShiftTracker</Text>
+              <AppLogo size="md" />
             </View>
             <Text className="text-2xl font-bold text-green-600 mb-4">Check your email!</Text>
             <Text className="text-muted-foreground mb-6 text-center">
