@@ -17,6 +17,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -241,6 +242,7 @@ export default function RootNavigation() {
   // Always render NavigationContainer — never let it unmount (prevents navigation context errors)
   return (
     <NavigationContainer linking={linking} theme={isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME}>
+      <StatusBar style={isDark ? "light" : "dark"} />
       {appState === "loading" ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color="#65a30d" />

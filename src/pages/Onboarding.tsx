@@ -81,14 +81,6 @@ const Onboarding = () => {
           </Button>
         </View>
 
-        {/* Skip */}
-        {!isLastSlide ? (
-          <TouchableOpacity onPress={() => navigation.navigate("Signup")} style={{ alignItems: "center" }}>
-            <Text className="text-sm text-muted-foreground">Skip</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ height: 4 }} />
-        )}
       </View>
     </View>
   );
