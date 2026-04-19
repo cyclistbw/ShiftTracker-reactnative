@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, ActivityIndicator, Pressable, DeviceEventEmitter } from "react-native";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CheckCircle2, TrendingUp, Car, Brain } from "lucide-react-native";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isOnboardingConfirmed, setOnboardingConfirmed } from "@/lib/onboarding-state";
+import { isOnboardingConfirmed, setOnboardingConfirmed, triggerOnboardingComplete } from "@/lib/onboarding-state";
 
 const highlights = [
   { icon: TrendingUp, text: "Track earnings, hours, and profit per shift" },
@@ -120,7 +120,7 @@ const OnboardingSuccess = () => {
       <Pressable
         onPress={() => {
           setOnboardingConfirmed(user!.id);
-          DeviceEventEmitter.emit("onboardingComplete");
+          triggerOnboardingComplete();
         }}
         style={({ pressed }) => ({
           backgroundColor: pressed ? "#65a30d" : "#84cc16",

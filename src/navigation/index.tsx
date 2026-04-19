@@ -16,7 +16,7 @@
  *       Modals: Analytics . MobileSubscription
  */
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, DeviceEventEmitter, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -51,7 +51,7 @@ const NAV_DARK_THEME = {
   },
 };
 import { supabase } from "@/integrations/supabase/client";
-import { isOnboardingConfirmed, setOnboardingConfirmed, hasSeenIntroSlides } from "@/lib/onboarding-state";
+import { isOnboardingConfirmed, setOnboardingConfirmed, hasSeenIntroSlides, registerOnboardingCompleteHandler } from "@/lib/onboarding-state";
 import { linking } from "./linking";
 
 import DashboardScreen from "@/pages/Index";
@@ -268,12 +268,12 @@ export default function RootNavigation() {
     return () => { cancelled = true; };
   }, [user, isLoading]);
 
-  // Listen for onboarding completion signal from OnboardingSuccess screen
+  // Register direct callback for onboarding completion.
+  // OnboardingSuccess calls triggerOnboardingComplete() which invokes this directly —
+  // more reliable than DeviceEventEmitter across navigator boundaries on iOS.
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener("onboardingComplete", () => {
-      setAppState("app");
-    });
-    return () => sub.remove();
+    registerOnboardingCompleteHandler(() => setAppState("app"));
+    return () => registerOnboardingCompleteHandler(() => {});
   }, []);
 
   // Hide splash only when BOTH auth state and intro-seen check are resolved
