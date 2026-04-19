@@ -261,9 +261,9 @@ const PersonalSettings = () => {
         onRequestClose={() => setShowSubscriptionModal(false)}
       >
         <TouchableWithoutFeedback onPress={() => setShowSubscriptionModal(false)}>
-          <View className="flex-1 bg-black/50 justify-end">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 }}>
             <TouchableWithoutFeedback>
-              <View className="bg-background rounded-t-2xl max-h-[90%]">
+              <View style={{ backgroundColor: 'white', borderRadius: 16, maxHeight: '88%', overflow: 'hidden' }}>
                 <View className="p-4 border-b border-border flex-row justify-between items-center">
                   <Text className="text-lg font-semibold text-foreground">Upgrade Plan</Text>
                   <Button variant="ghost" size="sm" onPress={() => setShowSubscriptionModal(false)}>

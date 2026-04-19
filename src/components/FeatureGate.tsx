@@ -21,7 +21,7 @@ export function FeatureGate({
   feature,
   children,
   fallback,
-  requiredTier = "pro",
+  requiredTier = "elite",
   title,
   description,
 }: FeatureGateProps) {
@@ -73,7 +73,7 @@ export function FeatureGate({
         </Text>
         <View className="space-y-2">
           <Button onPress={handleUpgradeClick} className="w-full">
-            Upgrade to {name}
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Upgrade to {name}</Text>
           </Button>
           <Text className="text-xs text-muted-foreground text-center">7-day Trial</Text>
         </View>

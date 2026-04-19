@@ -236,7 +236,7 @@ const MobileSubscriptionFlow = () => {
             )}
 
             <Text className="text-xs text-muted-foreground text-center">
-              14-day free trial · Cancel anytime
+              7-day free trial · Cancel anytime
             </Text>
           </CardContent>
         </Card>
