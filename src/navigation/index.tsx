@@ -52,6 +52,8 @@ const NAV_DARK_THEME = {
 };
 import { supabase } from "@/integrations/supabase/client";
 import { isOnboardingConfirmed, setOnboardingConfirmed, hasSeenIntroSlides, registerOnboardingCompleteHandler } from "@/lib/onboarding-state";
+import { TrialBanner } from "@/components/TrialBanner";
+import { TrialExpiredModal } from "@/components/TrialExpiredModal";
 import { linking } from "./linking";
 
 import DashboardScreen from "@/pages/Index";
@@ -106,6 +108,7 @@ function TabNavigator() {
   const { colors } = useTheme();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
+      <TrialBanner />
       <Tab.Navigator
         id={undefined}
         sceneContainerStyle={{ flex: 1 }}
@@ -142,7 +145,10 @@ function TabNavigator() {
 
 function AppNavigator() {
   return (
-    <AppStack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
+    <>
+      {/* Trial expired modal — renders above all app screens via RN Modal */}
+      <TrialExpiredModal />
+      <AppStack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <AppStack.Screen name="Tabs" component={TabNavigator} />
       <AppStack.Screen
         name="Analytics"
@@ -165,6 +171,7 @@ function AppNavigator() {
         options={{ presentation: "modal", headerShown: false, title: "Terms of Service" }}
       />
     </AppStack.Navigator>
+    </>
   );
 }
 

@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { UsageTracker, FEATURE_KEYS, getFeaturePeriodType } from "@/lib/usage-tracking";
+import { initTrialTracking, getTrialStatus, TrialStatus } from "@/lib/trial-notifications";
 
 export type SubscriptionTier = "free" | "basic" | "pro" | "elite";
 
@@ -91,6 +92,11 @@ type SubscriptionContextType = {
   subscriptionTier: SubscriptionTier;
   subscriptionEnd: string | null;
   isLoading: boolean;
+  // Trial state
+  isTrialing: boolean;
+  trialDaysLeft: number;
+  trialExpired: boolean;
+  trialEnd: Date | null;
   checkSubscription: (forceRefresh?: boolean) => Promise<void>;
   createCheckoutSession: (priceId: string, tier: SubscriptionTier) => Promise<void>;
   openCustomerPortal: () => Promise<void>;
@@ -109,6 +115,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("free");
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTrialing, setIsTrialing] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [trialEnd, setTrialEnd] = useState<Date | null>(null);
 
   // Load cached subscription from AsyncStorage on mount
   useEffect(() => {
@@ -170,14 +180,22 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (error) throw error;
-        setSubscribed(data.subscribed || false);
-        setSubscriptionTier(data.subscription_tier || "free");
+        const isSubscribed = data.subscribed || false;
+        const tier = data.subscription_tier || "free";
+        setSubscribed(isSubscribed);
+        setSubscriptionTier(tier);
         setSubscriptionEnd(data.subscription_end || null);
         await cacheSubscriptionData({
-          subscribed: data.subscribed || false,
-          tier: data.subscription_tier || "free",
+          subscribed: isSubscribed,
+          tier,
           end: data.subscription_end || null,
         });
+        // Evaluate trial state after every live subscription check
+        const trial: TrialStatus = await getTrialStatus(isSubscribed);
+        setIsTrialing(trial.isTrialing);
+        setTrialDaysLeft(trial.trialDaysLeft);
+        setTrialExpired(trial.trialExpired);
+        setTrialEnd(trial.trialEnd);
       } catch (error) {
         console.error("Subscription check failed:", error);
         setSubscribed(false);
@@ -204,6 +222,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (error || !data?.url) throw error || new Error("No URL returned");
+        // Start trial tracking before leaving the app for Stripe checkout
+        await initTrialTracking(user.id);
         // Open Stripe in external browser — replaces window.open(url, '_system')
         await Linking.openURL(data.url);
       } catch (error) {
@@ -315,6 +335,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         subscriptionTier,
         subscriptionEnd,
         isLoading,
+        isTrialing,
+        trialDaysLeft,
+        trialExpired,
+        trialEnd,
         checkSubscription,
         createCheckoutSession,
         openCustomerPortal,
