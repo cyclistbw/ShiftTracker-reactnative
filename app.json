@@ -41,7 +41,7 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 29,
+      "versionCode": 28,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
