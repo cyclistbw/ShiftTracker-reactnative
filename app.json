@@ -19,15 +19,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "config": {
         "usesNonExemptEncryption": false
       },
       "entitlements": {
-        "com.apple.developer.game-center": true,
-        "com.apple.developer.associated-domains": [
-          "applinks:shifttracker.app"
-        ]
+        "com.apple.developer.game-center": true
       },
       "infoPlist": {
         "NSCameraUsageDescription": "Shift Tracker uses your camera to capture receipts and expense photos.",
@@ -41,29 +38,12 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 28,
+      "versionCode": 29,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "shifttracker.app",
-              "pathPrefix": "/auth"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",

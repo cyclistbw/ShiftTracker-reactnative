@@ -4,10 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 
-// Universal Link for email confirmation redirect.
-// iOS/Android with the app installed → OS opens app directly (no browser).
-// Desktop or devices without app → browser loads shifttracker.app/auth/callback normally.
-export const AUTH_REDIRECT_URL = "https://shifttracker.app/auth/callback";
+// Custom scheme redirect for email confirmation.
+// Registered in app.json via the "scheme" field — OS opens app directly when installed.
+export const AUTH_REDIRECT_URL = "shifttracker://auth/callback";
 
 type AuthContextType = {
   user: User | null;
