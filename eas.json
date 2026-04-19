@@ -30,9 +30,20 @@
         "APP_ENV": "preview"
       }
     },
+    "production-apk": {
+      "distribution": "internal",
+      "channel": "production",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote"
+      },
+      "env": {
+        "APP_ENV": "production"
+      }
+    },
     "production": {
       "autoIncrement": true,
-      "channel": "production",
+      "channel": "production-v2",
       "ios": {
         "credentialsSource": "remote"
       },
@@ -48,9 +59,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "YOUR_APPLE_ID@example.com",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "shifttrackerapp@gmail.com",
+        "ascAppId": "6761228803",
+        "appleTeamId": "87JQNV462Q"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",

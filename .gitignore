@@ -1,5 +1,10 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Credentials — never commit these
+google-play-service-account.json
+*.p8
+*.p12
+
 # dependencies
 node_modules/
 

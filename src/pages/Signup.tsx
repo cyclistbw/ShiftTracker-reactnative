@@ -6,6 +6,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import AppLogo from "@/components/AppLogo";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ import { Eye, EyeOff } from "lucide-react-native";
 export default function SignupScreen() {
   const { signUp, isLoading } = useAuth();
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,13 +54,13 @@ export default function SignupScreen() {
   };
 
   if (isLoading) {
-    return <View className="flex-1 items-center justify-center bg-background"><ActivityIndicator size="large" /></View>;
+    return <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}><ActivityIndicator size="large" /></View>;
   }
 
   return (
-    <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingVertical: 32 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-1 items-center">
+    <KeyboardAvoidingView className="flex-1" style={{ flex: 1, backgroundColor: colors.background }} behavior="padding">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 32 }} keyboardShouldPersistTaps="handled">
+        <View className="items-center">
           <Card className="w-full max-w-sm">
             <CardHeader style={{ gap: 16 }}>
               <View className="items-center">

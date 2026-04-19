@@ -24,14 +24,15 @@ import ShiftSummary from "@/components/ShiftSummary";
 import PlatformSelector from "@/components/PlatformSelector";
 import { saveCurrentShift, getCurrentShift, getShifts, saveShifts } from "@/lib/storage";
 import { syncShiftToSupabase } from "@/lib/supabase-functions";
+import { addToSyncQueue } from "@/lib/sync-queue";
+import { useSyncRetry } from "@/hooks/useSyncRetry";
 import { Shift, Expense } from "@/types/shift";
 import { useToast } from "@/hooks/use-toast";
 import { randomUUID } from "expo-crypto";
 import { Plus } from "lucide-react-native";
-import LocationTracker from "@/components/LocationTracker";
+import Constants from "expo-constants";
 import FloatingFeedbackButton from "@/components/FloatingFeedbackButton";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
-import useLocationTracking from "@/hooks/useLocationTracking";
 import { emergencyStorageCleanup } from "@/lib/storage-cleanup";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
@@ -39,10 +40,10 @@ import { useActivityTracker } from "@/hooks/useActivityTracker";
 const Index = () => {
   const insets = useSafeAreaInsets();
   const { settings: businessSettings, loading: businessSettingsLoading, saveSettings } = useBusinessSettings();
-  const { getTotalDistanceMiles, tracking, locations, restoreTrackingIfNeeded } = useLocationTracking();
   const { canAccessFeature } = useSubscription();
   const { trackEvent } = useActivityTracker();
   const { toast } = useToast();
+  useSyncRetry();
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [endShiftDialogOpen, setEndShiftDialogOpen] = useState(false);
   const [startShiftDialogOpen, setStartShiftDialogOpen] = useState(false);
@@ -53,7 +54,6 @@ const Index = () => {
   const [totalPausedTime, setTotalPausedTime] = useState(0);
   const [formattedDuration, setFormattedDuration] = useState<string>("");
   const [syncingShift, setSyncingShift] = useState(false);
-  const [currentGpsMileage, setCurrentGpsMileage] = useState<number>(0);
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
   const [startMileage, setStartMileage] = useState<string>("");
   const [endMileage, setEndMileage] = useState<string>("");
@@ -62,9 +62,6 @@ const Index = () => {
   const [shiftNotes, setShiftNotes] = useState<string>("");
   const [tasksCompleted, setTasksCompleted] = useState<string>("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-
-  const useGpsTracking = businessSettings?.mileageCalculationMethod === "gps_tracking";
-  const skipOdometer = useGpsTracking;
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -84,14 +81,6 @@ const Index = () => {
   }, [businessSettings?.timezone, businessSettings?.clockFormat]);
 
   useEffect(() => {
-    if (useGpsTracking && tracking && locations.length > 0) {
-      setCurrentGpsMileage(getTotalDistanceMiles());
-    } else if (!tracking) {
-      setCurrentGpsMileage(0);
-    }
-  }, [locations, tracking, useGpsTracking, getTotalDistanceMiles]);
-
-  useEffect(() => {
     const loadShift = async () => {
       const shift = await getCurrentShift();
       if (shift) {
@@ -104,12 +93,6 @@ const Index = () => {
     };
     loadShift();
   }, []);
-
-  useEffect(() => {
-    if (currentShift && !businessSettingsLoading && useGpsTracking) {
-      restoreTrackingIfNeeded(!!currentShift && !isPaused, useGpsTracking);
-    }
-  }, [currentShift, isPaused, useGpsTracking, businessSettingsLoading, restoreTrackingIfNeeded]);
 
   useEffect(() => {
     if (!currentShift) return;
@@ -129,8 +112,8 @@ const Index = () => {
   }, [currentShift, isPaused, pauseTime, totalPausedTime]);
 
   const handleStartShift = async () => {
-    console.log("handleStartShift called", { skipOdometer, isMileageOnly, startMileage });
-    if (!skipOdometer && !isMileageOnly && (!startMileage || isNaN(parseFloat(startMileage)))) {
+    console.log("handleStartShift called", { isMileageOnly, startMileage });
+    if (!isMileageOnly && (!startMileage || isNaN(parseFloat(startMileage)))) {
       console.log("handleStartShift: validation failed");
       toast({ title: "Please enter your starting odometer reading", variant: "destructive" });
       return;
@@ -138,9 +121,9 @@ const Index = () => {
     console.log("handleStartShift: validation passed, creating shift");
     const newShift: Shift = {
       id: randomUUID(), startTime: new Date(), endTime: null,
-      mileageStart: skipOdometer ? 0 : parseFloat(startMileage),
+      mileageStart: parseFloat(startMileage),
       mileageEnd: null, income: isMileageOnly ? 0 : null,
-      expenses: [], isActive: true, locations: [],
+      expenses: [], isActive: true,
       isPaused: false, totalPausedTime: 0, isMileageOnly
     };
     try {
@@ -149,9 +132,8 @@ const Index = () => {
       await saveCurrentShift(newShift);
       console.log("handleStartShift: shift saved successfully");
       setStartShiftDialogOpen(false); setIsMileageOnly(false);
-      const methodText = useGpsTracking ? " GPS tracking will calculate mileage automatically." : "";
-      toast({ title: (isMileageOnly ? "Mileage tracking started!" : "Shift started!") + methodText });
-      trackEvent("shift_start", "dashboard", { mileageOnly: isMileageOnly, gpsTracking: useGpsTracking });
+      toast({ title: isMileageOnly ? "Mileage tracking started!" : "Shift started!" });
+      trackEvent("shift_start", "dashboard", { mileageOnly: isMileageOnly });
     } catch (err) {
       console.error("handleStartShift: error", err);
       toast({ title: "Failed to start shift. Please try again.", variant: "destructive" });
@@ -181,17 +163,13 @@ const Index = () => {
       toast({ title: "Please enter your income for this shift", variant: "destructive" }); return;
     }
     let finalMileageEnd = 0;
-    if (useGpsTracking) {
-      finalMileageEnd = currentShift.mileageStart! + currentGpsMileage;
-    } else if (!skipOdometer) {
-      if (!endMileage || isNaN(parseFloat(endMileage))) {
-        toast({ title: "Please enter your ending odometer reading", variant: "destructive" }); return;
-      }
-      if (parseFloat(endMileage) < currentShift.mileageStart!) {
-        toast({ title: "Ending mileage cannot be less than starting mileage", variant: "destructive" }); return;
-      }
-      finalMileageEnd = parseFloat(endMileage);
+    if (!endMileage || isNaN(parseFloat(endMileage))) {
+      toast({ title: "Please enter your ending odometer reading", variant: "destructive" }); return;
     }
+    if (parseFloat(endMileage) < currentShift.mileageStart!) {
+      toast({ title: "Ending mileage cannot be less than starting mileage", variant: "destructive" }); return;
+    }
+    finalMileageEnd = parseFloat(endMileage);
     let finalTotalPausedTime = totalPausedTime;
     if (isPaused && pauseTime) finalTotalPausedTime += (new Date().getTime() - pauseTime.getTime());
     const completedShift: Shift = {
@@ -206,36 +184,35 @@ const Index = () => {
     await saveShifts([...shifts, completedShift]);
     setCurrentShift(null); await saveCurrentShift(null); setEndShiftDialogOpen(false);
     setIsPaused(false); setPauseTime(null);
-    setTotalPausedTime(0); setCurrentGpsMileage(0); setSelectedPlatforms([]);
+    setTotalPausedTime(0); setSelectedPlatforms([]);
     trackEvent("shift_end", "dashboard", { mileageOnly: completedShift.isMileageOnly });
     setSyncingShift(true);
+    toast({ title: "Uploading to the cloud..." });
     try {
       const result = await syncShiftToSupabase(completedShift);
       if (result.success) {
         toast({ title: "Shift completed and synced to cloud storage!" });
       } else {
-        toast({ title: "Shift completed but sync failed. Your shift is saved locally.", variant: "destructive" });
+        await addToSyncQueue(completedShift);
+        toast({
+          title: "Shift saved — sync failed",
+          description: "Your shift is saved locally. We'll automatically retry upload in 15 minutes.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      toast({ title: "Shift completed but sync failed. Your shift is saved locally.", variant: "destructive" });
+      await addToSyncQueue(completedShift);
+      toast({
+        title: "Shift saved — sync failed",
+        description: "Your shift is saved locally. We'll automatically retry upload in 15 minutes.",
+        variant: "destructive",
+      });
     } finally { setSyncingShift(false); }
   };
 
   const promptStartShift = async () => {
     if (businessSettingsLoading) { toast({ title: "Loading settings, please wait...", variant: "destructive" }); return; }
-    if (skipOdometer && !isMileageOnly) {
-      const newShift: Shift = {
-        id: randomUUID(), startTime: new Date(), endTime: null, mileageStart: 0,
-        mileageEnd: null, income: null, expenses: [], isActive: true,
-        locations: [], isPaused: false, totalPausedTime: 0
-      };
-      setCurrentShift(newShift); setExpenses([]); setIsPaused(false);
-      setTotalPausedTime(0); setPauseTime(null); await saveCurrentShift(newShift);
-      toast({ title: "Shift started! GPS tracking will calculate mileage automatically." });
-      trackEvent("shift_start", "dashboard", { gpsTracking: true });
-    } else {
-      setStartMileage(""); setStartShiftDialogOpen(true);
-    }
+    setStartMileage(""); setStartShiftDialogOpen(true);
   };
 
   const promptEndShift = () => {
@@ -289,13 +266,6 @@ const Index = () => {
     }
   };
 
-  const handleLocationUpdate = (locs: any[]) => {
-    if (currentShift) {
-      const updatedShift = { ...currentShift, locations: locs };
-      setCurrentShift(updatedShift); saveCurrentShift(updatedShift);
-    }
-  };
-
   return (
     <View className="flex-1 bg-background">
       <FloatingFeedbackButton />
@@ -318,7 +288,7 @@ const Index = () => {
                     <Label>Mileage only (no time/income tracking)</Label>
                     <Switch checked={isMileageOnly} onCheckedChange={(c) => setIsMileageOnly(c)} />
                   </View>
-                  {!skipOdometer && (
+                  {!isMileageOnly && (
                     <View>
                       <Label className="mb-1">Starting Odometer Reading (miles)</Label>
                       <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background mt-1" placeholder="Enter your current odometer reading" placeholderTextColor="#6b7280" keyboardType="numeric" value={startMileage} onChangeText={setStartMileage} />
@@ -350,19 +320,12 @@ const Index = () => {
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 380 }}>
               <View className="px-4 pt-3 pb-2">
-                {useGpsTracking && currentShift && (
-                  <View style={{ marginBottom: 10 }}>
-                    <Text className="text-sm text-muted-foreground">GPS mileage: {(Math.round(currentGpsMileage * 100) / 100).toFixed(2)} miles</Text>
-                  </View>
-                )}
-                {!skipOdometer && (
-                  <View style={{ marginBottom: 10 }}>
-                    <Label style={{ marginBottom: 4 }}>
-                      Ending Odometer{currentShift && !skipOdometer ? ` (started at ${currentShift.mileageStart?.toFixed(0)})` : ""}
-                    </Label>
-                    <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Enter your current odometer reading" placeholderTextColor="#6b7280" keyboardType="numeric" value={endMileage} onChangeText={setEndMileage} />
-                  </View>
-                )}
+                <View style={{ marginBottom: 10 }}>
+                  <Label style={{ marginBottom: 4 }}>
+                    Ending Odometer{currentShift ? ` (started at ${currentShift.mileageStart?.toFixed(0)})` : ""}
+                  </Label>
+                  <TextInput className="border border-border rounded-md px-3 py-2 text-foreground bg-background" placeholder="Enter your current odometer reading" placeholderTextColor="#6b7280" keyboardType="numeric" value={endMileage} onChangeText={setEndMileage} />
+                </View>
                 {currentShift?.isMileageOnly && (
                   <View style={{ marginBottom: 10 }}>
                     <Label style={{ marginBottom: 4 }}>Notes (optional)</Label>
@@ -432,7 +395,7 @@ const Index = () => {
                 <Text className="text-foreground font-medium">Duration: {formattedDuration}</Text>
               )}
               <Text className="text-muted-foreground text-sm">
-                Starting mileage: {useGpsTracking ? "0.00" : (currentShift.mileageStart?.toFixed(2) || "0.00")} miles
+                Starting mileage: {currentShift.mileageStart?.toFixed(2) || "0.00"} miles
               </Text>
             </>
           ) : (
@@ -440,7 +403,7 @@ const Index = () => {
           )}
         </View>
         {currentShift && (
-          <View className="mt-8 items-center space-y-3">
+          <View className="mt-8 items-center" style={{ gap: 16 }}>
             <Button onPress={() => setAddExpenseDialogOpen(true)} variant="secondary" size="sm" className="bg-lime-600 flex-row items-center">
               <Plus size={16} color="white" />
               <Text className="text-white ml-2">Add Expense</Text>
@@ -450,18 +413,20 @@ const Index = () => {
             </Button>
           </View>
         )}
-        <View style={{ display: "none" }}>
-          <LocationTracker isShiftActive={!!currentShift && !isPaused} onLocationUpdate={handleLocationUpdate} />
-        </View>
       </View>
 
       {currentDateTime && (
-        <View className="absolute bottom-4 left-0 right-0 items-center">
+        <View className="absolute bottom-8 left-0 right-0 items-center">
           <View className="bg-card border border-border rounded-lg px-3 py-2">
             <Text className="text-xs text-muted-foreground font-mono">{currentDateTime}</Text>
           </View>
         </View>
       )}
+      <View className="absolute bottom-2 left-0 right-0 items-center">
+        <Text className="text-[10px] text-muted-foreground">
+          v{Constants.expoConfig?.version ?? "—"}
+        </Text>
+      </View>
     </View>
   );
 };

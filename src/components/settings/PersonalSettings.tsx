@@ -30,6 +30,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useContentMode } from "@/context/ContentModeContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Heart, Crown, Zap, ExternalLink, Moon, Sun, EyeOff, LogOut, User, Eye, Trash2, BarChart3 } from "lucide-react-native";
+import Constants from "expo-constants";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -285,20 +286,7 @@ const PersonalSettings = () => {
               <Text className="text-xl font-semibold text-foreground">Personal Settings</Text>
               <Text className="text-muted-foreground text-sm mt-1">Manage your personal preferences and wellness settings</Text>
             </View>
-            <View className="flex-row gap-2">
-              {/* 🚩 FLAG: AlertDialog → RNAlert.alert() confirmation */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-row items-center gap-2 border-destructive"
-                onPress={confirmDeleteAccount}
-                disabled={isDeletingAccount}
-              >
-                <Trash2 size={16} color="#dc2626" />
-                <Text className="text-destructive text-sm">
-                  {isDeletingAccount ? "Deleting..." : "Delete Account"}
-                </Text>
-              </Button>
+            <View className="flex-row justify-between items-center">
               <Button
                 onPress={handleLogout}
                 disabled={isLoggingOut}
@@ -311,11 +299,23 @@ const PersonalSettings = () => {
                   {isLoggingOut ? "Logging out..." : "Log out"}
                 </Text>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-row items-center gap-2 border-destructive"
+                onPress={confirmDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                <Trash2 size={16} color="#dc2626" />
+                <Text className="text-destructive text-sm">
+                  {isDeletingAccount ? "Deleting..." : "Delete Account"}
+                </Text>
+              </Button>
             </View>
           </View>
 
           {/* Subscription Section */}
-          <View className="mb-8">
+          <View className="mb-2">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-medium text-foreground">Plan & Subscription</Text>
               {user?.email && (
@@ -518,6 +518,7 @@ const PersonalSettings = () => {
               {isSaving ? "Saving..." : "Save Settings"}
             </Button>
           </View>
+
         </CardContent>
       </Card>
     </>

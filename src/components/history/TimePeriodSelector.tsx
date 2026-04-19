@@ -1,12 +1,10 @@
-// 🚩 FLAG: Calendar (react-day-picker) → DateTimePicker or custom date input (no browser calendar in RN)
-// 🚩 FLAG: Popover → inline expandable section (calendar shown inline when dateRange selected)
-// 🚩 FLAG: DateRange from react-day-picker → defined inline
-// 🚩 FLAG: window.open → Linking.openURL
-// 🚩 FLAG: <div>/<span>/<button> → <View>/<Text>/<Pressable>
-import { View, Text, Pressable } from "react-native";
+import { useState } from "react";
+import { View, Text, Pressable, Platform, Modal } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Crown } from "lucide-react-native";
+import { Button } from "@/components/ui/button";
+import { Crown, Calendar } from "lucide-react-native";
 import { format } from "date-fns";
 import { useSubscription } from "@/context/SubscriptionContext";
 
@@ -33,6 +31,11 @@ const TimePeriodSelector = ({
   const { subscriptionTier } = useSubscription();
   const isLimitedAccess = maxHistoryDays !== -1;
 
+  // "from" | "to" | null — which picker is open
+  const [pickerMode, setPickerMode] = useState<"from" | "to" | null>(null);
+  // iOS needs a staging value since the spinner fires onChange on every scroll
+  const [iosStagedDate, setIosStagedDate] = useState<Date>(new Date());
+
   const periodLabels: Record<string, string> = {
     all: "All Time",
     week: "This Week",
@@ -52,11 +55,33 @@ const TimePeriodSelector = ({
     return `Last ${maxHistoryDays} days`;
   };
 
-  const dateRangeLabel = dateRange?.from
-    ? dateRange.to
-      ? `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd, y")}`
-      : format(dateRange.from, "LLL dd, y")
-    : "Pick a date range";
+  const openPicker = (mode: "from" | "to") => {
+    const initial =
+      mode === "from"
+        ? (dateRange?.from ?? new Date())
+        : (dateRange?.to ?? dateRange?.from ?? new Date());
+    setIosStagedDate(initial);
+    setPickerMode(mode);
+  };
+
+  const confirmIosPicker = () => {
+    if (pickerMode === "from") {
+      onDateRangeChange({ from: iosStagedDate, to: dateRange?.to });
+    } else {
+      onDateRangeChange({ from: dateRange?.from, to: iosStagedDate });
+    }
+    setPickerMode(null);
+  };
+
+  const handleAndroidChange = (_: any, selected?: Date) => {
+    setPickerMode(null);
+    if (!selected) return;
+    if (pickerMode === "from") {
+      onDateRangeChange({ from: selected, to: dateRange?.to });
+    } else {
+      onDateRangeChange({ from: dateRange?.from, to: selected });
+    }
+  };
 
   return (
     <View className="flex-col gap-4 mb-6">
@@ -119,16 +144,41 @@ const TimePeriodSelector = ({
             )}
           </View>
 
-          {/* 🚩 FLAG: Calendar (react-day-picker) not available in RN.
-              Showing current selection as text. A full DateTimePicker
-              implementation requires @react-native-community/datetimepicker
-              and would be wired up in a follow-up pass. */}
-          <View className="border border-input rounded-md px-3 py-2 bg-background">
-            <Text className="text-sm text-muted-foreground">{dateRangeLabel}</Text>
-            <Text className="text-xs text-muted-foreground mt-1">
-              (Date range picker — wire up @react-native-community/datetimepicker)
-            </Text>
+          {/* Start / End buttons */}
+          <View className="flex-row gap-3">
+            <Pressable
+              onPress={() => openPicker("from")}
+              className="flex-1 border border-input rounded-md px-3 py-3 bg-background flex-row items-center gap-2"
+            >
+              <Calendar size={14} color="#6b7280" />
+              <View>
+                <Text className="text-xs text-muted-foreground">Start</Text>
+                <Text className="text-sm text-foreground font-medium">
+                  {dateRange?.from ? format(dateRange.from, "MMM dd, y") : "Select date"}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={() => openPicker("to")}
+              className="flex-1 border border-input rounded-md px-3 py-3 bg-background flex-row items-center gap-2"
+            >
+              <Calendar size={14} color="#6b7280" />
+              <View>
+                <Text className="text-xs text-muted-foreground">End</Text>
+                <Text className="text-sm text-foreground font-medium">
+                  {dateRange?.to ? format(dateRange.to, "MMM dd, y") : "Select date"}
+                </Text>
+              </View>
+            </Pressable>
           </View>
+
+          {/* Clear */}
+          {(dateRange?.from || dateRange?.to) && (
+            <Pressable onPress={() => onDateRangeChange(undefined)}>
+              <Text className="text-xs text-muted-foreground underline">Clear dates</Text>
+            </Pressable>
+          )}
 
           {isLimitedAccess && (
             <Text className="text-xs text-muted-foreground">
@@ -137,6 +187,51 @@ const TimePeriodSelector = ({
             </Text>
           )}
         </View>
+      )}
+
+      {/* Android — native dialog, no wrapper needed */}
+      {pickerMode !== null && Platform.OS === "android" && (
+        <DateTimePicker
+          value={
+            pickerMode === "from"
+              ? (dateRange?.from ?? new Date())
+              : (dateRange?.to ?? dateRange?.from ?? new Date())
+          }
+          mode="date"
+          display="default"
+          maximumDate={pickerMode === "to" ? new Date() : (dateRange?.to ?? new Date())}
+          minimumDate={pickerMode === "to" ? (dateRange?.from ?? undefined) : undefined}
+          onChange={handleAndroidChange}
+        />
+      )}
+
+      {/* iOS — spinner inside a modal so user can confirm before applying */}
+      {pickerMode !== null && Platform.OS === "ios" && (
+        <Modal transparent animationType="slide">
+          <View className="flex-1 justify-end bg-black/40">
+            <View className="bg-background rounded-t-2xl pb-6">
+              <View className="flex-row justify-between items-center px-4 pt-4 pb-2">
+                <Pressable onPress={() => setPickerMode(null)}>
+                  <Text className="text-base text-muted-foreground">Cancel</Text>
+                </Pressable>
+                <Text className="text-base font-semibold text-foreground">
+                  {pickerMode === "from" ? "Start Date" : "End Date"}
+                </Text>
+                <Pressable onPress={confirmIosPicker}>
+                  <Text className="text-base text-primary font-semibold">Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={iosStagedDate}
+                mode="date"
+                display="spinner"
+                maximumDate={pickerMode === "to" ? new Date() : (dateRange?.to ?? new Date())}
+                minimumDate={pickerMode === "to" ? (dateRange?.from ?? undefined) : undefined}
+                onChange={(_, selected) => { if (selected) setIosStagedDate(selected); }}
+              />
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );

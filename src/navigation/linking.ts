@@ -9,7 +9,9 @@
 import { LinkingOptions } from "@react-navigation/native";
 
 export const linking: LinkingOptions<any> = {
-  prefixes: ["shifttracker://"],
+  // shifttracker:// = custom scheme (legacy / in-app links)
+  // https://shifttracker.app = Universal Link (email confirmation on iOS/Android)
+  prefixes: ["shifttracker://", "https://shifttracker.app"],
   config: {
     screens: {
       // AuthNavigator screens

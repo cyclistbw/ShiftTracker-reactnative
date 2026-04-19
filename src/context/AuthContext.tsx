@@ -2,9 +2,12 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Linking from "expo-linking";
 
-// Web: window.location.origin → RN: deep-link scheme used in email redirect
-export const AUTH_REDIRECT_URL = "shifttracker://auth/callback";
+// Universal Link for email confirmation redirect.
+// iOS/Android with the app installed → OS opens app directly (no browser).
+// Desktop or devices without app → browser loads shifttracker.app/auth/callback normally.
+export const AUTH_REDIRECT_URL = "https://shifttracker.app/auth/callback";
 
 type AuthContextType = {
   user: User | null;
@@ -72,6 +75,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
+  }, []);
+
+  // Handle email verification deep links: shifttracker://auth/callback#access_token=...
+  useEffect(() => {
+    const handleUrl = async (url: string) => {
+      if (!url.includes("auth/callback")) return;
+      try {
+        // PKCE flow: URL has ?code=CODE
+        if (url.includes("code=")) {
+          await supabase.auth.exchangeCodeForSession(url);
+          return;
+        }
+        // Implicit flow: URL has #access_token=TOKEN&refresh_token=REFRESH
+        const hash = url.split("#")[1];
+        if (hash) {
+          const params = new URLSearchParams(hash);
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+          }
+        }
+      } catch (err) {
+        console.error("Auth callback error:", err);
+      }
+    };
+
+    // Cold start: app was launched by tapping the verification link
+    Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
+
+    // Warm start: app was already running when the link was tapped
+    const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => sub.remove();
   }, []);
 
   const signIn = async (email: string, password: string, rememberMe = false) => {
@@ -142,7 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "shifts",
         "currentShift",
         "analytics_storage",
-        "gps_tracking_state",
         "subscription_status",
       ];
 

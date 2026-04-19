@@ -44,6 +44,11 @@ const AverageStatisticsCard = ({ summary, shifts }: AverageStatisticsCardProps) 
   const avgTasksPerHour = totalHoursForTasks > 0 ? totalTasks / totalHoursForTasks : 0;
   const avgEarningsPerTask = totalTasks > 0 ? summary.totalIncome / totalTasks : 0;
 
+  const uniqueTaskDays = new Set(
+    shiftsWithTasks.map((s) => new Date(s.startTime).toDateString())
+  );
+  const avgTasksPerDay = uniqueTaskDays.size > 0 ? totalTasks / uniqueTaskDays.size : 0;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -56,10 +61,13 @@ const AverageStatisticsCard = ({ summary, shifts }: AverageStatisticsCardProps) 
           <StatBox label="Income (avg)" value={formatCurrency(avgIncome)} />
           <StatBox label="Hourly Rate" value={`${formatCurrency(summary.hourlyAverage)}/hr`} />
           {avgIncomePerMile > 0 && (
-            <StatBox label="Income/Mile" value={`${formatCurrency(avgIncomePerMile)}/mi`} />
+            <StatBox label="Income/Mile" value={`$${avgIncomePerMile.toFixed(2)}/mi`} />
           )}
           {avgTasksPerHour > 0 && (
             <StatBox label="Tasks/Hour" value={`${avgTasksPerHour.toFixed(1)}/hr`} />
+          )}
+          {avgTasksPerDay > 0 && (
+            <StatBox label="Tasks/Day" value={avgTasksPerDay.toFixed(1)} />
           )}
           {avgEarningsPerTask > 0 && (
             <StatBox label="Earnings/Task" value={formatCurrency(avgEarningsPerTask)} />

@@ -100,24 +100,20 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
   );
 
   const vehicleMileageBreakdown = useMemo(() => {
-    const yearShifts = shifts.filter((shift) => {
+    // Require valid odometer-style readings: both fields present, end > start, start > 0.
+    // NOTE: the old >= 100000 guard is removed so new/low-mileage vehicles are included.
+    const odometerShifts = shifts.filter((shift) => {
       const shiftYear = shift.startTime.getFullYear();
       return (
         shiftYear === selectedYear &&
         shift.endTime &&
         !shift.isActive &&
-        shift.mileageEnd &&
-        shift.mileageStart !== null
-      );
-    });
-
-    const odometerShifts = yearShifts.filter(
-      (shift) =>
         typeof shift.mileageStart === "number" &&
         typeof shift.mileageEnd === "number" &&
-        shift.mileageStart >= 100000 &&
-        shift.mileageEnd > shift.mileageStart
-    );
+        (shift.mileageStart as number) > 0 &&
+        (shift.mileageEnd as number) > (shift.mileageStart as number)
+      );
+    });
 
     if (odometerShifts.length === 0) {
       return {
@@ -126,32 +122,64 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
         nonBusinessMiles: 0,
         businessPercentage: 0,
         nonBusinessPercentage: 0,
+        vehicleCount: 0,
       };
     }
 
-    const shiftsByStart = [...odometerShifts].sort(
+    const sorted = [...odometerShifts].sort(
       (a, b) => a.startTime.getTime() - b.startTime.getTime()
     );
-    const shiftsByEnd = [...odometerShifts].sort(
-      (a, b) => a.endTime!.getTime() - b.endTime!.getTime()
+
+    // Detect vehicle changes by comparing each shift's mileageStart against the
+    // previous shift's mileageEnd. A strongly negative gap means the odometer
+    // reset (new/different vehicle). A gap > 50 000 mi between consecutive shifts
+    // is also treated as a new vehicle (implausible same-car jump).
+    const VEHICLE_CHANGE_THRESHOLD = 10000;
+
+    const segments: (typeof sorted)[] = [];
+    let currentSegment: typeof sorted = [sorted[0]];
+
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = currentSegment[currentSegment.length - 1];
+      const curr = sorted[i];
+      const gap = (curr.mileageStart as number) - (prev.mileageEnd as number);
+
+      if (gap < -VEHICLE_CHANGE_THRESHOLD || gap > 50000) {
+        segments.push(currentSegment);
+        currentSegment = [curr];
+      } else {
+        currentSegment.push(curr);
+      }
+    }
+    segments.push(currentSegment);
+
+    // Total vehicle miles = sum of (last mileageEnd − first mileageStart) per vehicle segment.
+    // This correctly handles multiple vehicles: each vehicle's span is counted independently.
+    let totalVehicleMiles = 0;
+    for (const seg of segments) {
+      const first = seg[0].mileageStart as number;
+      const last = seg[seg.length - 1].mileageEnd as number;
+      totalVehicleMiles += Math.max(0, last - first);
+    }
+
+    const businessMiles = sorted.reduce(
+      (sum, s) => sum + ((s.mileageEnd as number) - (s.mileageStart as number)),
+      0
     );
 
-    const earliestMileage = shiftsByStart[0].mileageStart as number;
-    const latestMileage = shiftsByEnd[shiftsByEnd.length - 1].mileageEnd as number;
-    const totalVehicleMiles = latestMileage - earliestMileage;
+    const nonBusinessMiles = Math.max(0, totalVehicleMiles - businessMiles);
+    const safeTotal = Math.max(totalVehicleMiles, businessMiles, 1);
+    const businessPercentage = (businessMiles / safeTotal) * 100;
+    const nonBusinessPercentage = (nonBusinessMiles / safeTotal) * 100;
 
-    const businessMiles = odometerShifts.reduce((sum, shift) => {
-      return sum + ((shift.mileageEnd as number) - (shift.mileageStart as number));
-    }, 0);
-
-    let nonBusinessMiles = totalVehicleMiles - businessMiles;
-    if (nonBusinessMiles < 0) nonBusinessMiles = 0;
-
-    const safeTotal = Math.max(totalVehicleMiles, businessMiles, 0);
-    const businessPercentage = safeTotal > 0 ? (businessMiles / safeTotal) * 100 : 0;
-    const nonBusinessPercentage = safeTotal > 0 ? (nonBusinessMiles / safeTotal) * 100 : 0;
-
-    return { totalVehicleMiles: safeTotal, businessMiles, nonBusinessMiles, businessPercentage, nonBusinessPercentage };
+    return {
+      totalVehicleMiles,
+      businessMiles,
+      nonBusinessMiles,
+      businessPercentage,
+      nonBusinessPercentage,
+      vehicleCount: segments.length,
+    };
   }, [shifts, selectedYear]);
 
   const getNextQuarterlyTaxInfo = () => {
@@ -360,48 +388,65 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
           </View>
 
           {/* Vehicle Mileage Analysis */}
-          {vehicleMileageBreakdown.totalVehicleMiles > 0 && (
-            <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: limeBorderColor }}>
-              <View className="flex-row items-center mb-3">
-                <Car size={16} color={limeIconColor} />
-                <Text style={{ color: limeLabelColor }} className="text-sm font-medium ml-1">
-                  Vehicle Mileage Analysis
-                </Text>
-              </View>
-              <View className="flex-row flex-wrap gap-y-2">
-                <View className="w-1/2">
-                  <Text className="text-muted-foreground text-sm">Total Vehicle Miles:</Text>
-                  <Text className="font-medium text-foreground text-sm">
-                    {vehicleMileageBreakdown.totalVehicleMiles.toLocaleString()} mi
-                  </Text>
-                </View>
-                <View className="w-1/2">
-                  <Text className="text-muted-foreground text-sm">Business Miles:</Text>
-                  <Text className="font-medium text-green-600 text-sm">
-                    {vehicleMileageBreakdown.businessMiles.toLocaleString()} mi{" "}
-                    <Text className="text-xs">
-                      ({vehicleMileageBreakdown.businessPercentage.toFixed(1)}%)
+          {vehicleMileageBreakdown.totalVehicleMiles > 0 && (() => {
+            const totalVehicleMiles = vehicleMileageBreakdown.totalVehicleMiles;
+            const businessMiles = yearlyData.totalMileage;
+            const personalMiles = Math.max(0, totalVehicleMiles - businessMiles);
+            const safeTotal = Math.max(totalVehicleMiles, businessMiles, 1);
+            const businessPct = (businessMiles / safeTotal) * 100;
+            const personalPct = (personalMiles / safeTotal) * 100;
+            const multiVehicle = vehicleMileageBreakdown.vehicleCount > 1;
+            return (
+              <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: limeBorderColor }}>
+                <View className="flex-row items-center justify-between mb-1">
+                  <View className="flex-row items-center">
+                    <Car size={16} color={limeIconColor} />
+                    <Text style={{ color: limeLabelColor }} className="text-sm font-medium ml-1">
+                      Vehicle Mileage Analysis
                     </Text>
-                  </Text>
-                </View>
-                <View className="w-1/2">
-                  <Text className="text-muted-foreground text-sm">Personal Miles:</Text>
-                  <Text className="font-medium text-orange-600 text-sm">
-                    {vehicleMileageBreakdown.nonBusinessMiles.toLocaleString()} mi{" "}
-                    <Text className="text-xs">
-                      ({vehicleMileageBreakdown.nonBusinessPercentage.toFixed(1)}%)
+                  </View>
+                  {multiVehicle && (
+                    <Text className="text-xs text-muted-foreground">
+                      {vehicleMileageBreakdown.vehicleCount} vehicles detected
                     </Text>
-                  </Text>
+                  )}
                 </View>
-                <View className="w-1/2">
-                  <Text className="text-muted-foreground text-sm">Deduction:</Text>
-                  <Text className="font-medium text-foreground text-sm">
-                    {formatCurrency(yearlyData.mileDeduction)}
+                {multiVehicle && (
+                  <Text className="text-xs text-muted-foreground mb-3">
+                    A vehicle change was detected this year. Total miles combines each vehicle's span separately.
                   </Text>
+                )}
+                <View className="flex-row flex-wrap gap-y-2">
+                  <View className="w-1/2">
+                    <Text className="text-muted-foreground text-sm">Total Vehicle Miles:</Text>
+                    <Text className="font-medium text-foreground text-sm">
+                      {totalVehicleMiles.toLocaleString()} mi
+                    </Text>
+                  </View>
+                  <View className="w-1/2">
+                    <Text className="text-muted-foreground text-sm">Business Miles:</Text>
+                    <Text className="font-medium text-green-600 text-sm">
+                      {businessMiles.toLocaleString()} mi{" "}
+                      <Text className="text-xs">({businessPct.toFixed(1)}%)</Text>
+                    </Text>
+                  </View>
+                  <View className="w-1/2">
+                    <Text className="text-muted-foreground text-sm">Personal Miles:</Text>
+                    <Text className="font-medium text-orange-600 text-sm">
+                      {personalMiles.toLocaleString()} mi{" "}
+                      <Text className="text-xs">({personalPct.toFixed(1)}%)</Text>
+                    </Text>
+                  </View>
+                  <View className="w-1/2">
+                    <Text className="text-muted-foreground text-sm">Deduction:</Text>
+                    <Text className="font-medium text-foreground text-sm">
+                      {formatCurrency(yearlyData.mileDeduction)}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 

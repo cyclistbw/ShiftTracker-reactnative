@@ -15,8 +15,9 @@
  *       Tabs: Dashboard . History . TaxReport . Settings
  *       Modals: Analytics . MobileSubscription
  */
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, DeviceEventEmitter, StyleSheet, View } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
@@ -50,7 +51,7 @@ const NAV_DARK_THEME = {
   },
 };
 import { supabase } from "@/integrations/supabase/client";
-import { isOnboardingConfirmed, setOnboardingConfirmed } from "@/lib/onboarding-state";
+import { isOnboardingConfirmed, setOnboardingConfirmed, hasSeenIntroSlides } from "@/lib/onboarding-state";
 import { linking } from "./linking";
 
 import DashboardScreen from "@/pages/Index";
@@ -176,13 +177,13 @@ function OnboardingNavigator() {
   );
 }
 
-function AuthNavigator() {
+function AuthNavigator({ introSeen }: { introSeen: boolean }) {
   return (
-    <AuthStack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator id={undefined} screenOptions={{ headerShown: false }} initialRouteName={introSeen ? "Login" : "Onboarding"}>
+      <AuthStack.Screen name="Onboarding"         component={OnboardingScreen} />
       <AuthStack.Screen name="Login"              component={LoginScreen} />
       <AuthStack.Screen name="Signup"             component={SignupScreen} />
       <AuthStack.Screen name="SignupConfirmation" component={SignupConfirmationScreen} />
-      <AuthStack.Screen name="Onboarding"         component={OnboardingScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -193,10 +194,39 @@ export default function RootNavigation() {
   const { user, isLoading } = useAuth();
   const { isDark } = useTheme();
   const [appState, setAppState] = useState<AppState>("loading");
+  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  const splashHidden = useRef(false);
+
+  // Failsafe: force-hide splash after 8 s no matter what
+  useEffect(() => {
+    const failsafe = setTimeout(() => {
+      if (!splashHidden.current) {
+        splashHidden.current = true;
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 8000);
+    return () => clearTimeout(failsafe);
+  }, []);
+
+  // Check intro-slides-seen, timeout after 3 s
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      if (!cancelled) setIntroSeen((s) => (s !== null ? s : true));
+    }, 3000);
+    hasSeenIntroSlides().then((val) => {
+      if (!cancelled) {
+        setIntroSeen(val);
+        clearTimeout(timeout);
+      }
+    }).catch(() => {
+      if (!cancelled) setIntroSeen(true);
+    });
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, []);
 
   useEffect(() => {
     if (isLoading) {
-      // Don't disrupt navigation if already authenticated — token refresh changes user reference
       setAppState(prev => prev === "app" ? prev : "loading");
       return;
     }
@@ -232,28 +262,58 @@ export default function RootNavigation() {
       }
     };
 
-    // Stay in "app" state while re-checking so NavigationContainer never unmounts on token refresh
     setAppState(prev => prev === "app" ? prev : "loading");
     checkOnboarding();
 
     return () => { cancelled = true; };
   }, [user, isLoading]);
 
-  // Always render NavigationContainer — never let it unmount (prevents navigation context errors)
+  // Listen for onboarding completion signal from OnboardingSuccess screen
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("onboardingComplete", () => {
+      setAppState("app");
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Hide splash only when BOTH auth state and intro-seen check are resolved
+  useEffect(() => {
+    if (appState !== "loading" && introSeen !== null && !splashHidden.current) {
+      splashHidden.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [appState, introSeen]);
+
+  const showLoadingOverlay = appState === "loading" || introSeen === null;
+  const overlayBg = isDark ? "#09090b" : "#ffffff";
+
+  // Force-clear overlay after 6 s — ensures first-launch users see the app even if auth hangs
+  const [forceClear, setForceClear] = useState(false);
+  useEffect(() => {
+    if (!showLoadingOverlay) { setForceClear(false); return; }
+    const t = setTimeout(() => setForceClear(true), 6000);
+    return () => clearTimeout(t);
+  }, [showLoadingOverlay]);
+
   return (
-    <NavigationContainer linking={linking} theme={isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      {appState === "loading" ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <ActivityIndicator size="large" color="#65a30d" />
+    <View style={{ flex: 1 }}>
+      <NavigationContainer linking={linking} theme={isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME}>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        {appState === "app"          && <AppNavigator />}
+        {appState === "onboarding"   && <OnboardingNavigator />}
+        {(appState === "unauthenticated" || appState === "loading") && (
+          <AuthNavigator
+            key={introSeen === null ? "auth-loading" : "auth-ready"}
+            introSeen={introSeen ?? false}
+          />
+        )}
+      </NavigationContainer>
+
+      {showLoadingOverlay && !forceClear && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: overlayBg, alignItems: "center", justifyContent: "center" }]}>
+          <ActivityIndicator size="large" color="#84cc16" />
         </View>
-      ) : (
-        <>
-          {appState === "unauthenticated" && <AuthNavigator />}
-          {appState === "onboarding"      && <OnboardingNavigator />}
-          {appState === "app"             && <AppNavigator />}
-        </>
       )}
-    </NavigationContainer>
+    </View>
   );
 }

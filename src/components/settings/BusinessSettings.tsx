@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 import { useAuth } from "@/context/AuthContext";
-import { Navigation, Calculator } from "lucide-react-native";
 import { toast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 
@@ -43,11 +42,6 @@ const gigPlatforms = [
   "Spin", "TaskRabbit", "Rover",
 ];
 
-const mileageCalculationMethods = [
-  { value: 'manual_odometer', label: 'Manual Odometer Reading', icon: Calculator, disabled: false },
-  { value: 'gps_tracking', label: 'GPS Tracking (Coming Soon)', icon: Navigation, disabled: true },
-];
-
 const BusinessSettings = () => {
   const { user } = useAuth();
   const { settings, loading, saveSettings } = useBusinessSettings();
@@ -58,7 +52,6 @@ const BusinessSettings = () => {
     businessType: "",
     currentTaxYear: "",
     defaultMileageRate: 0,
-    mileageCalculationMethod: "manual_odometer" as 'manual_odometer' | 'gps_tracking',
     gigPlatforms: [] as string[],
   });
   const [hasChanges, setHasChanges] = useState(false);
@@ -71,7 +64,6 @@ const BusinessSettings = () => {
         businessType: settings.businessType || "",
         currentTaxYear: settings.currentTaxYear || "",
         defaultMileageRate: settings.defaultMileageRate || 0,
-        mileageCalculationMethod: settings.mileageCalculationMethod || "manual_odometer",
         gigPlatforms: safeGigPlatforms,
       });
       setHasChanges(false);
@@ -219,36 +211,6 @@ const BusinessSettings = () => {
               onChangeText={(text) => updateFormData('defaultMileageRate', parseFloat(text) || 0)}
               className="mt-1"
             />
-          </View>
-
-          {/* Mileage Calculation Method */}
-          <View>
-            <Label className="mb-1">Mileage Calculation Method</Label>
-            <Select
-              value={formData.mileageCalculationMethod}
-              onValueChange={(value: 'manual_odometer' | 'gps_tracking') => updateFormData('mileageCalculationMethod', value)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select mileage calculation method" />
-              </SelectTrigger>
-              <SelectContent>
-                {mileageCalculationMethods.map((method) => (
-                  <SelectItem
-                    key={method.value}
-                    value={method.value}
-                    disabled={method.disabled}
-                  >
-                    {method.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Text className="text-sm text-muted-foreground mt-1">
-              {formData.mileageCalculationMethod === 'manual_odometer'
-                ? 'Manually enter odometer readings when starting and ending shifts'
-                : 'Automatically calculate mileage using GPS tracking data'
-              }
-            </Text>
           </View>
 
           {/* Gig Platforms */}

@@ -16,6 +16,7 @@ import Recommendations from "@/components/analytics/Recommendations";
 import EliteRecommendations from "@/components/analytics/EliteRecommendations";
 import SeasonalEarningsAnalysis from "@/components/analytics/SeasonalEarningsAnalysis";
 import PlatformAnalytics from "@/components/analytics/PlatformAnalytics";
+import CumulativeHourlyChart from "@/components/analytics/CumulativeHourlyChart";
 import { ProFeatureGate } from "@/components/FeatureGate";
 import { useSubscription } from "@/context/SubscriptionContext";
 import YearSelector from "@/components/analytics/YearSelector";
@@ -262,6 +263,8 @@ const GigAnalytics: React.FC<GigAnalyticsProps> = ({ initialYear }) => {
 
           <PlatformAnalytics selectedYear={selectedYear} refreshKey={refreshKey} />
 
+          <CumulativeHourlyChart selectedYear={selectedYear} refreshKey={refreshKey} />
+
           <ProFeatureGate
             feature="seasonal_earnings_analysis"
             title="Seasonal Earnings Analysis"
@@ -283,6 +286,7 @@ const GigAnalytics: React.FC<GigAnalyticsProps> = ({ initialYear }) => {
       {!analytics && !loading && (
         <View className="gap-4">
           <PlatformAnalytics selectedYear={selectedYear} refreshKey={refreshKey} />
+          <CumulativeHourlyChart selectedYear={selectedYear} refreshKey={refreshKey} />
           <LimeDynamicHeatmap key={`heatmap-standalone-${refreshKey}`} ref={heatmapRef} />
         </View>
       )}

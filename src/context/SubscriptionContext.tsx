@@ -194,7 +194,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (!user || !session) return;
       try {
         const { data, error } = await supabase.functions.invoke("create-checkout", {
-          body: { priceId, tier },
+          body: {
+            priceId,
+            tier,
+            // Deep-link URLs so Stripe redirects back to the native app
+            successUrl: "shifttracker://mobile-subscription",
+            cancelUrl: "shifttracker://mobile-subscription",
+          },
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (error || !data?.url) throw error || new Error("No URL returned");
@@ -211,6 +217,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (!user || !session) return;
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal", {
+        body: {
+          // Deep-link URL so Stripe customer portal redirects back to the native app
+          returnUrl: "shifttracker://mobile-subscription",
+        },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (error || !data?.url) throw error || new Error("No URL returned");

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shift Tracker",
     "slug": "shift-tracker-native",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -19,19 +19,19 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "4",
+      "buildNumber": "22",
       "config": {
         "usesNonExemptEncryption": false
       },
+      "entitlements": {
+        "com.apple.developer.game-center": true,
+        "com.apple.developer.associated-domains": ["applinks:shifttracker.app"]
+      },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Shift Tracker uses your location to calculate mileage during active shifts.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Shift Tracker tracks your location in the background to accurately record mileage even when the app is minimised.",
-        "NSLocationAlwaysUsageDescription": "Shift Tracker tracks your location in the background to accurately record mileage.",
         "NSCameraUsageDescription": "Shift Tracker uses your camera to capture receipts and expense photos.",
         "NSPhotoLibraryUsageDescription": "Shift Tracker accesses your photo library to attach receipt images to expenses.",
         "NSUserNotificationUsageDescription": "Shift Tracker sends reminders about upcoming quarterly tax payment due dates.",
         "UIBackgroundModes": [
-          "location",
           "fetch",
           "remote-notification"
         ]
@@ -39,16 +39,27 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 5,
+      "versionCode": 27,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "shifttracker.app",
+              "pathPrefix": "/auth"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -58,7 +69,6 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -77,14 +87,6 @@
         }
       ],
       [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Shift Tracker tracks your location during shifts to calculate mileage.",
-          "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Shift Tracker to access your photos for receipts.",
@@ -96,7 +98,8 @@
         {
           "cameraPermission": "Allow Shift Tracker to use the camera."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

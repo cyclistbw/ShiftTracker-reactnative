@@ -6,7 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 interface UserPreferences {
   id?: string;
   user_id: string;
-  location_permission_granted: boolean;
   content_mode_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -45,7 +44,6 @@ export const useUserPreferences = () => {
         // Create default preferences if none exist
         const defaultPrefs = {
           user_id: user.id,
-          location_permission_granted: false,
           content_mode_enabled: false
         };
 
@@ -65,29 +63,6 @@ export const useUserPreferences = () => {
       console.error('Error in loadPreferences:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Update location permission status
-  const updateLocationPermission = async (granted: boolean) => {
-    if (!user || !preferences) return false;
-
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .update({ location_permission_granted: granted })
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error updating location permission:', error);
-        return false;
-      }
-
-      setPreferences(prev => prev ? { ...prev, location_permission_granted: granted } : null);
-      return true;
-    } catch (error) {
-      console.error('Error in updateLocationPermission:', error);
-      return false;
     }
   };
 
@@ -121,7 +96,6 @@ export const useUserPreferences = () => {
   return {
     preferences,
     loading,
-    updateLocationPermission,
     updateContentMode,
     refreshPreferences: loadPreferences
   };

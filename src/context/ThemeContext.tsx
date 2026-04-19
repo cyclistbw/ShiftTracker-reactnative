@@ -133,7 +133,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         The variables upgrade happens on the first render (canUpgradeWarn=false) so no
         upgrade warning fires. Theme switches just update the VariableContext value.
       */}
-      <View style={[{ flex: 1 }, themeVars]}>
+      <View style={[{ flex: 1, backgroundColor: colors.background }, themeVars]}>
         {children}
       </View>
     </ThemeContext.Provider>

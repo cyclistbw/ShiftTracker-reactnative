@@ -9,12 +9,6 @@ export interface Expense {
   receiptImage?: string; // DEBUG: Made optional temporarily for mobile debugging
 }
 
-export interface Location {
-  latitude: number;
-  longitude: number;
-  timestamp: Date;
-}
-
 export interface Vehicle {
   id: string;
   name: string;
@@ -53,7 +47,6 @@ export interface Shift {
   income: number | null;
   expenses: Expense[];
   isActive: boolean;
-  locations?: Location[];
   isPaused?: boolean;
   pauseTime?: Date | null;
   totalPausedTime?: number; // Total time paused in milliseconds
