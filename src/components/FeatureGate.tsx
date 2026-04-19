@@ -2,11 +2,14 @@
 // 🚩 FLAG: Capacitor.isNativePlatform() → always true in RN (removed import)
 import { ReactNode } from "react";
 import { View, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AppStackParamList } from "@/navigation/index";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Zap, Crown, ExternalLink } from "lucide-react-native";
+import { Lock, Zap, Crown } from "lucide-react-native";
 
 type FeatureGateProps = {
   feature: string;
@@ -25,7 +28,8 @@ export function FeatureGate({
   title,
   description,
 }: FeatureGateProps) {
-  const { canAccessFeature, createCheckoutSession } = useSubscription();
+  const { canAccessFeature } = useSubscription();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
 
   if (canAccessFeature(feature)) {
     return <>{children}</>;
@@ -40,15 +44,10 @@ export function FeatureGate({
     elite: { name: "Elite", Icon: Crown, color: "#9333ea" },
   };
 
-  const priceIds = {
-    pro: "price_1RlsgT06hf9LhstgsnkDTSZG",
-    elite: "price_1Rlsh906hf9LhstgIbATIaAq",
-  };
-
   const { name, Icon, color } = tierInfo[requiredTier];
 
-  const handleUpgradeClick = async () => {
-    await createCheckoutSession(priceIds[requiredTier], requiredTier);
+  const handleUpgradeClick = () => {
+    navigation.navigate("MobileSubscription");
   };
 
   return (
@@ -71,11 +70,11 @@ export function FeatureGate({
         <Text className="text-muted-foreground text-center mb-4">
           {description || `This feature requires a ${name} subscription to unlock.`}
         </Text>
-        <View className="space-y-2">
+        <View style={{ gap: 10 }}>
           <Button onPress={handleUpgradeClick} className="w-full">
             <Text style={{ color: '#fff', fontWeight: '600' }}>Upgrade to {name}</Text>
           </Button>
-          <Text className="text-xs text-muted-foreground text-center">7-day Trial</Text>
+          <Text className="text-xs text-muted-foreground text-center">7-day free trial · Cancel anytime</Text>
         </View>
       </CardContent>
     </Card>
