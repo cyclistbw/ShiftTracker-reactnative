@@ -43,7 +43,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production-v2",
+      "channel": "production",
       "ios": {
         "credentialsSource": "remote"
       },
