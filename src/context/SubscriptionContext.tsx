@@ -327,7 +327,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (user && session) {
-      checkSubscription(true);
+      // Use cached subscription if fresh (< 2 hrs) — avoids a Stripe round-trip on every login.
+      // Pass forceRefresh=true only when the cache is stale or missing.
+      checkSubscription(false);
     } else {
       setSubscribed(false);
       setSubscriptionTier("free");

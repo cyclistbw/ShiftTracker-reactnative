@@ -48,13 +48,6 @@ export const useShiftHistory = () => {
     try {
       console.log("Starting to load shifts...");
 
-      // Compute server-side date cutoff to avoid pulling rows that will be filtered anyway
-      const featureLimits = getFeatureLimits();
-      const historyDaysLimit = featureLimits.shift_history_days;
-      const cutoffDate = historyDaysLimit !== -1
-        ? new Date(Date.now() - historyDaysLimit * 24 * 60 * 60 * 1000).toISOString()
-        : null;
-
       // Start local AsyncStorage read immediately (runs concurrently with DB queries)
       const localShiftsPromise = getShifts();
 
@@ -79,8 +72,8 @@ export const useShiftHistory = () => {
           .order('start_time', { ascending: false });
 
         const [mainResult, importResult, resolvedLocal] = await Promise.all([
-          cutoffDate ? mainQuery.gte('start_time', cutoffDate) : mainQuery,
-          cutoffDate ? importQuery.gte('start_time', cutoffDate) : importQuery,
+          mainQuery,
+          importQuery,
           localShiftsPromise,
         ]);
 
