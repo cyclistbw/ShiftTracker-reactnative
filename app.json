@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shift Tracker",
     "slug": "shift-tracker-native",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "29",
+      "buildNumber": "30",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -38,7 +38,7 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 35,
+      "versionCode": 36,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
