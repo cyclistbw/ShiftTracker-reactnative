@@ -219,7 +219,9 @@ export default function RootNavigation() {
   useEffect(() => {
     let cancelled = false;
     const timeout = setTimeout(() => {
-      if (!cancelled) setIntroSeen((s) => (s !== null ? s : true));
+      // Default to false (show Onboarding) if AsyncStorage is slow on cold start.
+      // Returning users who already have a session will land in "app" state anyway.
+      if (!cancelled) setIntroSeen((s) => (s !== null ? s : false));
     }, 3000);
     hasSeenIntroSlides().then((val) => {
       if (!cancelled) {
@@ -227,7 +229,8 @@ export default function RootNavigation() {
         clearTimeout(timeout);
       }
     }).catch(() => {
-      if (!cancelled) setIntroSeen(true);
+      // On error, default to showing Onboarding (safer for new users)
+      if (!cancelled) setIntroSeen(false);
     });
     return () => { cancelled = true; clearTimeout(timeout); };
   }, []);
