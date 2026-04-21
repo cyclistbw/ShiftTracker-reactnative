@@ -115,7 +115,7 @@ export default function LoginScreen() {
                     </Pressable>
                     <View className="flex-row">
                       <Text className="text-sm text-foreground">Don't have an account? </Text>
-                      <Pressable onPress={() => navigation.navigate("Signup")}>
+                      <Pressable onPress={() => navigation.navigate("Onboarding")}>
                         <Text className="text-sm text-primary">Sign up</Text>
                       </Pressable>
                     </View>
