@@ -121,17 +121,13 @@ const OnboardingSuccess = () => {
             setOnboardingConfirmed(user!.id);
             triggerOnboardingComplete();
           }}
-          style={({ pressed }) => ({
-            width: "100%",
-            backgroundColor: pressed ? "#65a30d" : "#84cc16",
-            paddingVertical: 16,
-            borderRadius: 12,
-            alignItems: "center",
-          })}
+          style={{ width: "100%", borderRadius: 12, overflow: "hidden" }}
         >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-            Get Started
-          </Text>
+          <View style={{ backgroundColor: "#84cc16", paddingVertical: 16, alignItems: "center", borderRadius: 12 }}>
+            <Text style={{ color: "#ffffff", fontSize: 16, fontWeight: "700" }}>
+              Get Started
+            </Text>
+          </View>
         </Pressable>
       </View>
     </View>
