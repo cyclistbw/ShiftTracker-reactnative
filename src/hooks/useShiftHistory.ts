@@ -39,7 +39,7 @@ export const useShiftHistory = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { getFeatureLimits } = useSubscription();
+  const { getFeatureLimits, subscriptionTier } = useSubscription();
 
   const loadShifts = async () => {
     setLoading(true);
@@ -92,19 +92,8 @@ export const useShiftHistory = () => {
         }
 
         if (importResult.error) {
-          const isMissingTable =
-            importResult.error.code === '42P01' ||
-            importResult.error.message?.includes('does not exist');
-          if (isMissingTable) {
-            console.log("shift_summaries_import table not found — skipping for new account");
-          } else {
-            console.error("Error fetching imported shifts:", importResult.error);
-            toast({
-              title: "Warning",
-              description: "Could not load imported shifts from the database.",
-              variant: "destructive",
-            });
-          }
+          // shift_summaries_import is optional — silently skip any error
+          console.log("shift_summaries_import unavailable:", importResult.error.code, importResult.error.message);
         } else {
           importedShifts = importResult.data || [];
         }
@@ -232,8 +221,9 @@ export const useShiftHistory = () => {
 
       filteredShifts.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-      const subscriptionLimitedShifts = applySubscriptionLimits(filteredShifts);
-      setShifts(subscriptionLimitedShifts);
+      // Store all shifts unfiltered — subscription limit applied in displayedShifts memo
+      // so it auto-reacts when subscriptionTier changes after a fresh-install login
+      setShifts(filteredShifts);
 
     } catch (error) {
       console.error("Exception loading shifts:", error);
@@ -253,7 +243,7 @@ export const useShiftHistory = () => {
         }
         return false;
       });
-      setShifts(localShifts);
+      setShifts(localShifts); // also unfiltered — memo handles subscription limit
     } finally {
       setLoading(false);
     }
@@ -285,11 +275,14 @@ export const useShiftHistory = () => {
   };
 
   const displayedShifts = useMemo(() => {
+    // Apply subscription tier limit first, then time period filter.
+    // subscriptionTier is a dep so this re-runs when the tier loads after login.
+    const tierLimited = applySubscriptionLimits(shifts);
     if (timePeriod === "dateRange" && dateRange?.from && dateRange?.to) {
-      return getFilteredShiftsWithDateRange(shifts, timePeriod, dateRange.from, dateRange.to);
+      return getFilteredShiftsWithDateRange(tierLimited, timePeriod, dateRange.from, dateRange.to);
     }
-    return getFilteredShiftsWithDateRange(shifts, timePeriod);
-  }, [shifts, timePeriod, dateRange]);
+    return getFilteredShiftsWithDateRange(tierLimited, timePeriod);
+  }, [shifts, timePeriod, dateRange, subscriptionTier]);
 
   return {
     shifts: displayedShifts,
