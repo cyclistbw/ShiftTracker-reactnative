@@ -35,6 +35,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    const clearStaleSession = async () => {
+      // Purge all Supabase auth keys from AsyncStorage so no stale tokens remain
+      try {
+        const allKeys = await AsyncStorage.getAllKeys();
+        const supabaseKeys = allKeys.filter(k => k.includes('supabase'));
+        if (supabaseKeys.length > 0) await AsyncStorage.multiRemove(supabaseKeys);
+      } catch (_) {}
+      await supabase.auth.signOut().catch(() => {});
+    };
+
     const initSession = async () => {
       try {
         const {
@@ -42,9 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error,
         } = await supabase.auth.getSession();
         if (error) {
-          console.error("Error getting initial session:", error);
-          // Stale/invalid session (e.g. after JWT rotation) — clear it cleanly
-          await supabase.auth.signOut();
+          console.error("Error getting initial session — clearing stale tokens:", error);
+          await clearStaleSession();
           if (mounted) { setSession(null); setUser(null); }
         } else if (mounted) {
           setSession(session);
@@ -52,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error("Unexpected session fetch error:", err);
+        await clearStaleSession();
         if (mounted) { setSession(null); setUser(null); }
       } finally {
         if (mounted) setIsLoading(false);
@@ -62,15 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      // TOKEN_REFRESHED_FAILED means the stored refresh token is invalid (e.g. after JWT rotation)
-      // Clear everything so the user gets a clean login screen instead of "Invalid API key"
-      if (event === "TOKEN_REFRESHED" && !session) {
-        supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        setIsLoading(false);
+      // Any sign-out or failed refresh — purge stale tokens so next login is clean
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+        await clearStaleSession();
+        if (mounted) { setSession(null); setUser(null); setIsLoading(false); }
         return;
       }
       setSession(session);
