@@ -60,9 +60,9 @@ const OnboardingSuccess = () => {
   return (
     <View
       className="flex-1 bg-background"
-      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 28, justifyContent: 'space-between' }}
+      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 28 }}
     >
-      <View className="items-center justify-center">
+      <View className="items-center" style={{ flex: 1, justifyContent: 'center' }}>
         {/* Check icon */}
         <View
           style={{
@@ -93,7 +93,7 @@ const OnboardingSuccess = () => {
         </Text>
 
         {/* Feature highlights */}
-        <View style={{ width: "100%", gap: 12, marginBottom: 40 }}>
+        <View style={{ width: "100%", gap: 12, marginBottom: 32 }}>
           {highlights.map(({ icon: Icon, text }, i) => (
             <View
               key={i}
@@ -114,25 +114,26 @@ const OnboardingSuccess = () => {
             </View>
           ))}
         </View>
-      </View>
 
-      {/* CTA */}
-      <Pressable
-        onPress={() => {
-          setOnboardingConfirmed(user!.id);
-          triggerOnboardingComplete();
-        }}
-        style={({ pressed }) => ({
-          backgroundColor: pressed ? "#65a30d" : "#84cc16",
-          paddingVertical: 16,
-          borderRadius: 12,
-          alignItems: "center",
-        })}
-      >
-        <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-          Start Tracking
-        </Text>
-      </Pressable>
+        {/* CTA */}
+        <Pressable
+          onPress={() => {
+            setOnboardingConfirmed(user!.id);
+            triggerOnboardingComplete();
+          }}
+          style={({ pressed }) => ({
+            width: "100%",
+            backgroundColor: pressed ? "#65a30d" : "#84cc16",
+            paddingVertical: 16,
+            borderRadius: 12,
+            alignItems: "center",
+          })}
+        >
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+            Get Started
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
