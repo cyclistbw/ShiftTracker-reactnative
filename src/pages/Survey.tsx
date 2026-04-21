@@ -127,7 +127,8 @@ const Survey = () => {
         { onConflict: "user_id" }
       );
       if (error) {
-        toast({ title: "Failed to save your answers. Please try again.", variant: "destructive" });
+        console.error("Survey upsert error:", JSON.stringify(error));
+        toast({ title: `Save failed: ${error.message || error.code || "unknown error"}`, variant: "destructive" });
         setSaving(false);
         return;
       }
@@ -138,14 +139,16 @@ const Survey = () => {
         .eq("user_id", user!.id)
         .maybeSingle();
       if (verifyError || !verifyData?.onboarding_completed) {
-        toast({ title: "Failed to confirm save. Please try again.", variant: "destructive" });
+        console.error("Survey verify error:", JSON.stringify(verifyError));
+        toast({ title: `Confirm failed: ${verifyError?.message || "data not saved"}`, variant: "destructive" });
         setSaving(false);
         return;
       }
 
       markOnboardingComplete(user!.id);
       navigation.replace("OnboardingSuccess");
-    } catch {
+    } catch (err) {
+      console.error("Survey unexpected error:", err);
       toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
       setSaving(false);
