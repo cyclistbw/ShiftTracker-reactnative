@@ -56,7 +56,9 @@ export const useShiftHistory = () => {
       let localShifts: Shift[] = [];
 
       if (user?.id) {
-        console.log(`Fetching shifts for authenticated user: ${user.id}`);
+        // Verify the client has an active session before querying (RLS requires it)
+        const { data: { session: liveSession } } = await supabase.auth.getSession();
+        console.log(`loadShifts — user: ${user.id}, session valid: ${!!liveSession}, token prefix: ${liveSession?.access_token?.substring(0, 20) ?? 'NONE'}`);
 
         // Build both queries before awaiting — run them in parallel with local read
         const mainQuery = supabase
@@ -81,14 +83,15 @@ export const useShiftHistory = () => {
         console.log(`Found ${localShifts.length} local shifts`);
 
         if (mainResult.error) {
-          console.error("Error fetching shifts from shift_summaries:", mainResult.error);
+          console.error("shift_summaries error — code:", mainResult.error.code, "msg:", mainResult.error.message, "details:", mainResult.error.details);
           toast({
             title: "Warning",
-            description: "Could not load some shifts from the database.",
+            description: `Could not load shifts: ${mainResult.error.message || mainResult.error.code}`,
             variant: "destructive",
           });
         } else {
           supabaseShifts = mainResult.data || [];
+          console.log(`shift_summaries returned ${supabaseShifts.length} rows`);
         }
 
         if (importResult.error) {
