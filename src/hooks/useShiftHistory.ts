@@ -48,63 +48,76 @@ export const useShiftHistory = () => {
     try {
       console.log("Starting to load shifts...");
 
-      // 🚩 FLAG: getShifts() is now async — must be awaited (was synchronous in web)
-      const localShifts = await getShifts();
-      console.log(`Found ${localShifts.length} local shifts`);
+      // Compute server-side date cutoff to avoid pulling rows that will be filtered anyway
+      const featureLimits = getFeatureLimits();
+      const historyDaysLimit = featureLimits.shift_history_days;
+      const cutoffDate = historyDaysLimit !== -1
+        ? new Date(Date.now() - historyDaysLimit * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      // Start local AsyncStorage read immediately (runs concurrently with DB queries)
+      const localShiftsPromise = getShifts();
 
       let supabaseShifts: any[] = [];
       let importedShifts: any[] = [];
+      let localShifts: Shift[] = [];
 
       if (user?.id) {
         console.log(`Fetching shifts for authenticated user: ${user.id}`);
 
-        try {
-          const { data, error: supabaseError } = await supabase
-            .from('shift_summaries')
-            .select('*')
-            .eq('user_id', user.id);
+        // Build both queries before awaiting — run them in parallel with local read
+        const mainQuery = supabase
+          .from('shift_summaries')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('start_time', { ascending: false });
 
-          if (supabaseError) {
-            console.error("Error fetching shifts from shift_summaries:", supabaseError);
-            toast({
-              title: "Warning",
-              description: "Could not load some shifts from the database.",
-              variant: "destructive",
-            });
-          } else {
-            supabaseShifts = data || [];
-          }
-        } catch (err) {
-          console.error("Exception fetching from shift_summaries:", err);
+        const importQuery = supabase
+          .from('shift_summaries_import')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('start_time', { ascending: false });
+
+        const [mainResult, importResult, resolvedLocal] = await Promise.all([
+          cutoffDate ? mainQuery.gte('start_time', cutoffDate) : mainQuery,
+          cutoffDate ? importQuery.gte('start_time', cutoffDate) : importQuery,
+          localShiftsPromise,
+        ]);
+
+        localShifts = resolvedLocal;
+        console.log(`Found ${localShifts.length} local shifts`);
+
+        if (mainResult.error) {
+          console.error("Error fetching shifts from shift_summaries:", mainResult.error);
+          toast({
+            title: "Warning",
+            description: "Could not load some shifts from the database.",
+            variant: "destructive",
+          });
+        } else {
+          supabaseShifts = mainResult.data || [];
         }
 
-        try {
-          const { data, error: importError } = await supabase
-            .from('shift_summaries_import')
-            .select('*')
-            .eq('user_id', user.id);
-
-          if (importError) {
-            // Code 42P01 = table doesn't exist (new accounts with no import data)
-            const isMissingTable = importError.code === '42P01' || importError.message?.includes('does not exist');
-            if (isMissingTable) {
-              console.log("shift_summaries_import table not found — skipping for new account");
-            } else {
-              console.error("Error fetching imported shifts:", importError);
-              toast({
-                title: "Warning",
-                description: "Could not load imported shifts from the database.",
-                variant: "destructive",
-              });
-            }
+        if (importResult.error) {
+          const isMissingTable =
+            importResult.error.code === '42P01' ||
+            importResult.error.message?.includes('does not exist');
+          if (isMissingTable) {
+            console.log("shift_summaries_import table not found — skipping for new account");
           } else {
-            importedShifts = data || [];
+            console.error("Error fetching imported shifts:", importResult.error);
+            toast({
+              title: "Warning",
+              description: "Could not load imported shifts from the database.",
+              variant: "destructive",
+            });
           }
-        } catch (err) {
-          console.error("Exception fetching from shift_summaries_import:", err);
+        } else {
+          importedShifts = importResult.data || [];
         }
       } else {
         console.log("No authenticated user, skipping Supabase queries");
+        localShifts = await localShiftsPromise;
       }
 
       const analyticsData: GigAnalyticsData = {
@@ -114,22 +127,22 @@ export const useShiftHistory = () => {
         },
         shiftPerformanceByBin: [],
         shiftCompositeScore: [],
-        rawShiftSummaries: supabaseShifts?.map(record => ({
+        rawShiftSummaries: supabaseShifts.map(record => ({
           shift_id: `supabase-${record.id}`,
           start_time: record.start_time,
           end_time: record.end_time,
           earnings: record.earnings,
           hours_worked: record.hours_worked,
           miles_driven: record.miles_driven
-        })) || [],
-        rawImportedShifts: importedShifts?.map(record => ({
+        })),
+        rawImportedShifts: importedShifts.map(record => ({
           shift_id: `import-${record.id}`,
           start_time: record.start_time,
           end_time: record.end_time,
           earnings: record.earnings,
           hours_worked: record.hours_worked,
           miles_driven: record.miles_driven
-        })) || []
+        }))
       };
 
       const hasWarnings = verifyAnalyticsData(analyticsData);
@@ -238,7 +251,6 @@ export const useShiftHistory = () => {
         variant: "destructive",
       });
 
-      // 🚩 FLAG: getShifts() is now async — must be awaited in catch block too
       const localShifts = (await getShifts()).filter(shift => {
         if (shift.imported) return true;
         if (shift.income && shift.income > 0) return true;
