@@ -56,10 +56,6 @@ export const useShiftHistory = () => {
       let localShifts: Shift[] = [];
 
       if (user?.id) {
-        // Verify the client has an active session before querying (RLS requires it)
-        const { data: { session: liveSession } } = await supabase.auth.getSession();
-        console.log(`loadShifts — user: ${user.id}, session valid: ${!!liveSession}, token prefix: ${liveSession?.access_token?.substring(0, 20) ?? 'NONE'}`);
-
         // Build both queries before awaiting — run them in parallel with local read
         const mainQuery = supabase
           .from('shift_summaries')

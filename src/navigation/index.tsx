@@ -135,9 +135,9 @@ function TabNavigator() {
         })}
       >
         <Tab.Screen name="Dashboard"  component={DashboardScreen}  options={{ title: "Dashboard" }} />
-        <Tab.Screen name="History"    component={HistoryScreen}    options={{ title: "History" }} />
-        <Tab.Screen name="TaxReport"  component={TaxReportScreen}  options={{ title: "Tax" }} />
-        <Tab.Screen name="Settings"   component={SettingsScreen}   options={{ title: "Settings" }} />
+        <Tab.Screen name="History"    component={HistoryScreen}    options={{ title: "History",  lazy: false }} />
+        <Tab.Screen name="TaxReport"  component={TaxReportScreen}  options={{ title: "Tax",      lazy: false }} />
+        <Tab.Screen name="Settings"   component={SettingsScreen}   options={{ title: "Settings", lazy: false }} />
       </Tab.Navigator>
     </SafeAreaView>
   );
