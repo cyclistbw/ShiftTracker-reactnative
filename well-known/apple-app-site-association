@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["87JQNV462Q.com.brendenwarn.shifttracker"],
+        "components": [
+          {
+            "/": "/auth/callback*",
+            "comment": "Email confirmation and password reset callbacks"
+          }
+        ]
+      }
+    ]
+  }
+}

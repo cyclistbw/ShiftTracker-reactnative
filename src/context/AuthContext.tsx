@@ -41,13 +41,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { session },
           error,
         } = await supabase.auth.getSession();
-        if (error) console.error("Error getting initial session:", error);
-        if (mounted) {
+        if (error) {
+          console.error("Error getting initial session:", error);
+          // Stale/invalid session (e.g. after JWT rotation) — clear it cleanly
+          await supabase.auth.signOut();
+          if (mounted) { setSession(null); setUser(null); }
+        } else if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
         }
       } catch (err) {
         console.error("Unexpected session fetch error:", err);
+        if (mounted) { setSession(null); setUser(null); }
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -58,11 +63,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (mounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
+      if (!mounted) return;
+      // TOKEN_REFRESHED_FAILED means the stored refresh token is invalid (e.g. after JWT rotation)
+      // Clear everything so the user gets a clean login screen instead of "Invalid API key"
+      if (event === "TOKEN_REFRESHED" && !session) {
+        supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
         setIsLoading(false);
+        return;
       }
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
     const timeout = setTimeout(() => {

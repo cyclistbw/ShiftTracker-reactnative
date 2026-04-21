@@ -85,12 +85,18 @@ export const useShiftHistory = () => {
             .eq('user_id', user.id);
 
           if (importError) {
-            console.error("Error fetching imported shifts:", importError);
-            toast({
-              title: "Warning",
-              description: "Could not load imported shifts from the database.",
-              variant: "destructive",
-            });
+            // Code 42P01 = table doesn't exist (new accounts with no import data)
+            const isMissingTable = importError.code === '42P01' || importError.message?.includes('does not exist');
+            if (isMissingTable) {
+              console.log("shift_summaries_import table not found — skipping for new account");
+            } else {
+              console.error("Error fetching imported shifts:", importError);
+              toast({
+                title: "Warning",
+                description: "Could not load imported shifts from the database.",
+                variant: "destructive",
+              });
+            }
           } else {
             importedShifts = data || [];
           }

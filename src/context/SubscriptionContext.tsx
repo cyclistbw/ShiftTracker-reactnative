@@ -10,7 +10,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { Linking } from "react-native";
+import { Linking, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -221,13 +221,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           },
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (error || !data?.url) throw error || new Error("No URL returned");
+        // data?.error contains the real message even when HTTP status is non-2xx
+        if (data?.error) throw new Error(data.error);
+        if (error) throw new Error(error.message || JSON.stringify(error));
+        if (!data?.url) throw new Error("No checkout URL returned");
         // Start trial tracking before leaving the app for Stripe checkout
         await initTrialTracking(user.id);
         // Open Stripe in external browser — replaces window.open(url, '_system')
         await Linking.openURL(data.url);
       } catch (error) {
-        console.error("Checkout creation failed:", error);
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("Checkout creation failed:", msg);
+        Alert.alert("Unable to Open Checkout", msg, [{ text: "OK" }]);
       }
     },
     [user, session]
@@ -311,10 +316,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const getFeatureLimits = useCallback((): FeatureLimits => {
     switch (subscriptionTier) {
-      case "elite": return { shift_history_days: -1 };
-      case "pro":   return { shift_history_days: 90 };
-      case "basic": return { shift_history_days: 30 };
-      default:      return { shift_history_days: 7 };
+      case "elite":
+      case "premium":
+      case "enterprise": return { shift_history_days: -1 };
+      case "pro":        return { shift_history_days: 90 };
+      case "basic":      return { shift_history_days: 30 };
+      default:           return { shift_history_days: 7 };
     }
   }, [subscriptionTier]);
 

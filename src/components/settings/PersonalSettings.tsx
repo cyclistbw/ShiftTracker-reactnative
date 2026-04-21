@@ -10,7 +10,10 @@
 // 🚩 FLAG: sm:flex-row → flex-col (single column on mobile)
 // 🚩 FLAG: hover:bg-muted → removed (no hover on mobile)
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, Modal, Alert as RNAlert, TouchableWithoutFeedback } from "react-native";
+import { View, Text, Pressable, Alert as RNAlert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AppStackParamList } from "@/navigation/index";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -35,7 +38,6 @@ import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import MobileSubscriptionFlow from "@/components/mobile/MobileSubscriptionFlow";
 
 const timezoneOptions = [
   { value: 'America/New_York', label: 'Eastern Time (ET)' },
@@ -60,12 +62,12 @@ const PersonalSettings = () => {
   const { subscriptionTier, subscribed, subscriptionEnd, openCustomerPortal, isLoading, hasFeature } = useSubscription();
   const { preferences, loading: preferencesLoading, updateContentMode, refreshPreferences } = useUserPreferences();
   const { setContentMode } = useContentMode();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   // 🚩 FLAG: localStorage.getItem → AsyncStorage (initialized async via useEffect)
   const [showEmail, setShowEmail] = useState(true);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const [formData, setFormData] = useState({
     timezone: "America/New_York",
@@ -253,30 +255,6 @@ const PersonalSettings = () => {
 
   return (
     <>
-      {/* 🚩 FLAG: Dialog → Modal for subscription upgrade flow */}
-      <Modal
-        visible={showSubscriptionModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSubscriptionModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowSubscriptionModal(false)}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 }}>
-            <TouchableWithoutFeedback>
-              <View style={{ backgroundColor: 'white', borderRadius: 16, maxHeight: '88%', overflow: 'hidden' }}>
-                <View className="p-4 border-b border-border flex-row justify-between items-center">
-                  <Text className="text-lg font-semibold text-foreground">Upgrade Plan</Text>
-                  <Button variant="ghost" size="sm" onPress={() => setShowSubscriptionModal(false)}>
-                    Close
-                  </Button>
-                </View>
-                <MobileSubscriptionFlow />
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
       <Card>
         <CardContent className="pt-6">
           {/* Header */}
@@ -390,10 +368,9 @@ const PersonalSettings = () => {
                     <Text className="text-foreground">{isLoading ? 'Loading...' : 'Manage Subscription'}</Text>
                   </Button>
                 ) : (
-                  // 🚩 FLAG: Dialog + DialogTrigger → Button opens Modal
                   <Button
                     size="sm"
-                    onPress={() => setShowSubscriptionModal(true)}
+                    onPress={() => navigation.navigate("MobileSubscription")}
                     className="flex-row items-center gap-2"
                   >
                     <Zap size={16} color="#ffffff" />

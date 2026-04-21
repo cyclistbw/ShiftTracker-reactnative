@@ -60,9 +60,9 @@ const OnboardingSuccess = () => {
   return (
     <View
       className="flex-1 bg-background"
-      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 28 }}
+      style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 28, justifyContent: 'space-between' }}
     >
-      <View className="flex-1 items-center justify-center">
+      <View className="items-center justify-center">
         {/* Check icon */}
         <View
           style={{

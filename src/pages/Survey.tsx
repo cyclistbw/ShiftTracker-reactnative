@@ -82,7 +82,6 @@ const Survey = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setIsLoadingOnboardingStatus(false); return; }
-    if (isOnboardingConfirmed(user.id)) { setIsLoadingOnboardingStatus(false); navigation.replace("Home"); return; }
 
     let isMounted = true;
     const checkStatus = async () => {

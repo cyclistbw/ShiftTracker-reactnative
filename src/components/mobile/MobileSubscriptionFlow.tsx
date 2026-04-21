@@ -202,7 +202,7 @@ const MobileSubscriptionFlow = () => {
             </View>
 
             {/* Features */}
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: 8, marginBottom: 20 }}>
               {ELITE_FEATURES.map((f, i) => {
                 const Icon = f.icon;
                 return (
