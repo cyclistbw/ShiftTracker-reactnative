@@ -70,6 +70,7 @@ import AnalyticsScreen from "@/pages/Analytics";
 import MobileSubscriptionScreen from "@/pages/MobileSubscription";
 import MobilePrivacyScreen from "@/pages/MobilePrivacy";
 import MobileTermsScreen from "@/pages/MobileTerms";
+import ResetPasswordScreen from "@/pages/ResetPassword";
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -111,9 +112,9 @@ function TabNavigator() {
       <TrialBanner />
       <Tab.Navigator
         id={undefined}
-        sceneContainerStyle={{ flex: 1 }}
         screenOptions={({ route }) => ({
           headerShown: false,
+          sceneStyle: { flex: 1 },
           tabBarActiveTintColor: colors.tabBarActive,
           tabBarInactiveTintColor: colors.tabBarInactive,
           tabBarStyle: {
@@ -195,10 +196,10 @@ function AuthNavigator({ introSeen }: { introSeen: boolean }) {
   );
 }
 
-type AppState = "loading" | "unauthenticated" | "onboarding" | "app";
+type AppState = "loading" | "unauthenticated" | "onboarding" | "app" | "password_recovery";
 
 export default function RootNavigation() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isPasswordRecovery } = useAuth();
   const { isDark } = useTheme();
   const [appState, setAppState] = useState<AppState>("loading");
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
@@ -236,6 +237,11 @@ export default function RootNavigation() {
   }, []);
 
   useEffect(() => {
+    if (isPasswordRecovery) {
+      setAppState("password_recovery");
+      return;
+    }
+
     if (isLoading) {
       setAppState(prev => prev === "app" ? prev : "loading");
       return;
@@ -256,19 +262,28 @@ export default function RootNavigation() {
       }
 
       try {
-        const { data, error } = await supabase
+        // Race the DB query against a 4 s timeout — on Android the query can hang
+        // and leave the user stuck on the Login screen indefinitely.
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("onboarding_check_timeout")), 4000)
+        );
+        const queryPromise = supabase
           .from("user_profile")
           .select("user_id, onboarding_completed")
           .eq("user_id", user.id)
           .maybeSingle();
 
+        const result = await Promise.race([queryPromise, timeoutPromise]) as Awaited<typeof queryPromise>;
+
         if (cancelled) return;
 
-        const completed = !error && !!data?.user_id;
+        const completed = !result.error && !!result.data?.user_id;
         if (completed) setOnboardingConfirmed(user.id);
         setAppState(completed ? "app" : "onboarding");
       } catch {
-        if (!cancelled) setAppState("onboarding");
+        // Timeout or network error — assume onboarding complete for existing users
+        // so they land in the app rather than being stuck on Login.
+        if (!cancelled) setAppState("app");
       }
     };
 
@@ -276,7 +291,7 @@ export default function RootNavigation() {
     checkOnboarding();
 
     return () => { cancelled = true; };
-  }, [user, isLoading]);
+  }, [user, isLoading, isPasswordRecovery]);
 
   // Register direct callback for onboarding completion.
   // OnboardingSuccess calls triggerOnboardingComplete() which invokes this directly —
@@ -309,8 +324,9 @@ export default function RootNavigation() {
     <View style={{ flex: 1 }}>
       <NavigationContainer linking={linking} theme={isDark ? NAV_DARK_THEME : NAV_LIGHT_THEME}>
         <StatusBar style={isDark ? "light" : "dark"} />
-        {appState === "app"          && <AppNavigator />}
-        {appState === "onboarding"   && <OnboardingNavigator />}
+        {appState === "app"               && <AppNavigator />}
+        {appState === "onboarding"        && <OnboardingNavigator />}
+        {appState === "password_recovery" && <ResetPasswordScreen />}
         {(appState === "unauthenticated" || appState === "loading") && (
           <AuthNavigator
             key={introSeen === null ? "auth-loading" : "auth-ready"}

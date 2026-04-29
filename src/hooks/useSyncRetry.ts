@@ -43,11 +43,11 @@ async function scheduleRetryNotification(shiftId: string, attemptCount: number, 
       title: "Shift Sync Failed",
       body: `Attempt ${attemptCount} failed. We'll try again automatically at ${triggerDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`,
       sound: true,
-      channelId: NOTIF_CHANNEL,
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: triggerDate,
+      channelId: NOTIF_CHANNEL,
     },
   }).catch(() => {});
 }

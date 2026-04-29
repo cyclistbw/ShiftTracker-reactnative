@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, AUTH_REDIRECT_URL } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react-native";
 
@@ -50,16 +50,28 @@ export default function LoginScreen() {
     setError("");
     setResetSuccess("");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail);
+      console.log("[ResetPassword] Sending reset email to:", resetEmail, "redirect:", AUTH_REDIRECT_URL);
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: AUTH_REDIRECT_URL,
+      });
       if (error) {
-        setError(error.message);
+        console.error("[ResetPassword] Supabase error:", error);
+        // Surface specific rate-limit / config errors instead of a generic message.
+        const msg = error.message || "Failed to send reset email";
+        if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("over_email")) {
+          setError("Too many reset requests. Please wait an hour and try again.");
+        } else {
+          setError(msg);
+        }
       } else {
-        setResetSuccess("Password reset email sent! Check your inbox.");
+        console.log("[ResetPassword] Reset email sent successfully");
+        setResetSuccess("Password reset email sent! Check your inbox (and spam folder).");
         setShowForgotPassword(false);
         setResetEmail("");
       }
-    } catch (err) {
-      setError("An unexpected error occurred");
+    } catch (err: any) {
+      console.error("[ResetPassword] Unexpected error:", err);
+      setError(`Error: ${err?.message || "Unknown error"}`);
     } finally {
       setResetLoading(false);
     }

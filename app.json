@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shift Tracker",
     "slug": "shift-tracker-native",
-    "version": "1.1.4",
+    "version": "1.1.11",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "32",
+      "buildNumber": "39",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -27,8 +27,6 @@
         "com.apple.developer.game-center": true
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "Shift Tracker uses your camera to capture receipts and expense photos.",
-        "NSPhotoLibraryUsageDescription": "Shift Tracker accesses your photo library to attach receipt images to expenses.",
         "NSUserNotificationUsageDescription": "Shift Tracker sends reminders about upcoming quarterly tax payment due dates.",
         "UIBackgroundModes": [
           "fetch",
@@ -38,23 +36,18 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 38,
+      "versionCode": 46,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.FOREGROUND_SERVICE"
       ]
     },
     "web": {
@@ -69,19 +62,6 @@
           "color": "#65a30d",
           "androidMode": "default",
           "androidCollapsedTitle": "Shift Tracker"
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow Shift Tracker to access your photos for receipts.",
-          "cameraPermission": "Allow Shift Tracker to use the camera to capture receipts."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Shift Tracker to use the camera."
         }
       ],
       "@react-native-community/datetimepicker"

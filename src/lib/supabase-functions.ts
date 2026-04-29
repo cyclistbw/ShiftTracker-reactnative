@@ -40,12 +40,9 @@ export const syncShiftToSupabase = async (
       receiptImage: exp.receiptImage
     }));
 
-    // Create a simplified version of the locations array to ensure JSON compatibility
-    const simplifiedLocations = shift.locations ? shift.locations.map(loc => ({
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      timestamp: loc.timestamp instanceof Date ? loc.timestamp.toISOString() : loc.timestamp
-    })) : [];
+    // Locations were never tracked on the Shift type — keep an empty array for
+    // backward compatibility with stored summary_data shape.
+    const simplifiedLocations: any[] = [];
 
     // First, check if there's already a shift with the same ID in the database using a simpler query
     const { data: existingShifts, error: queryError } = await supabase

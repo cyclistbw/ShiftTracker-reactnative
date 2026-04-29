@@ -30,9 +30,10 @@ async function logCrashToSupabase(error: Error, info: React.ErrorInfo) {
     await AsyncStorage.setItem("pending_crash_logs", JSON.stringify(logs.slice(-10)));
   } catch {}
 
-  // Then try Supabase
+  // Then try Supabase. Cast through `any` because the auto-generated Database
+  // types haven't been regenerated since the crash_logs table was added.
   try {
-    await supabase.from("crash_logs").insert(payload);
+    await (supabase as any).from("crash_logs").insert(payload);
   } catch {}
 }
 
@@ -43,7 +44,7 @@ export async function flushPendingCrashLogs() {
     if (!existing) return;
     const logs = JSON.parse(existing);
     if (!logs.length) return;
-    const { error } = await supabase.from("crash_logs").insert(logs);
+    const { error } = await (supabase as any).from("crash_logs").insert(logs);
     if (!error) await AsyncStorage.removeItem("pending_crash_logs");
   } catch {}
 }

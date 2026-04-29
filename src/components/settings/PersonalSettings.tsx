@@ -74,6 +74,7 @@ const PersonalSettings = () => {
     clockFormat: "12-hour" as '12-hour' | '24-hour',
     darkModePreference: false,
     contentModeEnabled: false,
+    enableWellnessCheckin: false,
   });
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -92,6 +93,7 @@ const PersonalSettings = () => {
         clockFormat: settings.clockFormat || "12-hour",
         darkModePreference: isDark,
         contentModeEnabled: preferences.content_mode_enabled || false,
+        enableWellnessCheckin: false,
       });
       // Sync ThemeContext with the DB-persisted preference (authoritative source on login)
       setThemeMode(isDark ? 'dark' : 'light');

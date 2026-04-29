@@ -18,6 +18,7 @@ interface SelectContextValue {
   onValueChange?: (value: string, label?: string) => void;
   open: boolean;
   setOpen: (open: boolean) => void;
+  disabled?: boolean;
 }
 
 const SelectContext = React.createContext<SelectContextValue>({
@@ -30,9 +31,10 @@ interface SelectProps {
   onValueChange?: (value: string) => void;
   children?: React.ReactNode;
   defaultValue?: string;
+  disabled?: boolean;
 }
 
-function Select({ value, onValueChange, defaultValue, children }: SelectProps) {
+function Select({ value, onValueChange, defaultValue, children, disabled }: SelectProps) {
   const [open, setOpen] = React.useState(false);
   const [internalValue, setInternalValue] = React.useState(defaultValue);
   const [selectedLabel, setSelectedLabel] = React.useState<string | undefined>();
@@ -45,9 +47,14 @@ function Select({ value, onValueChange, defaultValue, children }: SelectProps) {
     setOpen(false);
   };
 
+  const setOpenIfEnabled = (next: boolean) => {
+    if (disabled) return;
+    setOpen(next);
+  };
+
   return (
     <SelectContext.Provider
-      value={{ value: effectiveValue, selectedLabel, onValueChange: handleChange, open, setOpen }}
+      value={{ value: effectiveValue, selectedLabel, onValueChange: handleChange, open, setOpen: setOpenIfEnabled, disabled }}
     >
       {children}
     </SelectContext.Provider>

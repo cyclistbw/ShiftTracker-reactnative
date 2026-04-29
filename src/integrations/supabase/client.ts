@@ -16,6 +16,14 @@ export const supabase = createClient<Database>(
       persistSession: true,
       // Must be false in React Native — there is no URL to detect
       detectSessionInUrl: false,
+      // PKCE flow: auth codes arrive as ?code= query params which survive
+      // custom-scheme redirects on both iOS and Android.  The old implicit flow
+      // put tokens in the #hash fragment, which mobile browsers/email-app
+      // WebViews strip during the 302 redirect to shifttracker://.
+      // The earlier race-condition between getSession() and
+      // exchangeCodeForSession() was fixed (we no longer call clearStaleSession
+      // on init errors), so PKCE is safe now.
+      flowType: "pkce",
     },
   }
 );

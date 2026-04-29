@@ -36,7 +36,7 @@ function AlertDialog({ open = false, onOpenChange, children }: AlertDialogProps)
   );
 }
 
-function AlertDialogTrigger({ children }: { children: React.ReactElement }) {
+function AlertDialogTrigger({ children }: { children: React.ReactElement<any> }) {
   const { onOpenChange } = React.useContext(AlertDialogContext);
   return React.cloneElement(children, { onPress: () => onOpenChange(true) });
 }
@@ -125,10 +125,12 @@ function AlertDialogAction({
   onPress,
   className,
   children,
+  disabled,
 }: {
   onPress?: () => void;
   className?: string;
   children?: React.ReactNode;
+  disabled?: boolean;
 }) {
   const { onOpenChange } = React.useContext(AlertDialogContext);
   return (
@@ -138,6 +140,7 @@ function AlertDialogAction({
         onOpenChange(false);
       }}
       className={className}
+      disabled={disabled}
     >
       {children}
     </Button>
@@ -148,10 +151,12 @@ function AlertDialogCancel({
   onPress,
   className,
   children,
+  disabled,
 }: {
   onPress?: () => void;
   className?: string;
   children?: React.ReactNode;
+  disabled?: boolean;
 }) {
   const { onOpenChange } = React.useContext(AlertDialogContext);
   return (
@@ -162,6 +167,7 @@ function AlertDialogCancel({
         onOpenChange(false);
       }}
       className={className}
+      disabled={disabled}
     >
       {children}
     </Button>

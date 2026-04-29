@@ -63,9 +63,12 @@ export const useVehicles = () => {
       if (shiftsResult.data) {
         for (const row of shiftsResult.data) {
           try {
-            const shift = typeof row.summary_data === 'string'
-              ? JSON.parse(row.summary_data).shift
-              : row.summary_data?.shift;
+            const summary = typeof row.summary_data === 'string'
+              ? JSON.parse(row.summary_data)
+              : row.summary_data;
+            const shift = (summary && typeof summary === 'object' && !Array.isArray(summary))
+              ? (summary as Record<string, any>).shift
+              : undefined;
             const vehicleId: string | undefined = shift?.vehicleId;
             const mileageEnd: number | null | undefined = shift?.mileageEnd;
             if (vehicleId && mileageEnd != null && !(vehicleId in latestMileageEndByVehicle)) {

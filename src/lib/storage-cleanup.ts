@@ -9,9 +9,9 @@ const CURRENT_SHIFT_KEY = "lime-tracker-current-shift";
 
 export const getStorageUsage = async () => {
   try {
-    // 🚩 FLAG: localStorage.length / localStorage.key(i) → AsyncStorage.getAllKeys() + getMany()
+    // 🚩 FLAG: localStorage.length / localStorage.key(i) → AsyncStorage.getAllKeys() + multiGet()
     const keys = await AsyncStorage.getAllKeys();
-    const pairs = await AsyncStorage.getMany(keys);
+    const pairs = await AsyncStorage.multiGet(keys);
 
     let totalSize = 0;
     const storageItems: { key: string; size: number }[] = [];

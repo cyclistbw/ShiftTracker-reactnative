@@ -6,13 +6,15 @@ import Toast from "react-native-toast-message";
 interface ToastOptions {
   title?: string;
   description?: string;
-  variant?: "default" | "destructive";
+  variant?: "default" | "destructive" | "warning";
   duration?: number;
 }
 
 function toast(options: ToastOptions) {
   const { title, description, variant, duration } = options;
-  const type = variant === "destructive" ? "error" : "success";
+  const type =
+    variant === "destructive" ? "error" :
+    variant === "warning" ? "info" : "success";
 
   Toast.show({
     type,

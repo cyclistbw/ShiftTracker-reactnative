@@ -8,7 +8,6 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  ReactNode,
 } from "react";
 import { Linking, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -85,6 +84,7 @@ const FEATURE_ACCESS: Record<SubscriptionTier, string[]> = {
 
 export interface FeatureLimits {
   shift_history_days: number; // -1 = unlimited
+  dynamic_heatmap_days: number; // -1 = unlimited, 0 = locked
 }
 
 type SubscriptionContextType = {
@@ -92,6 +92,8 @@ type SubscriptionContextType = {
   subscriptionTier: SubscriptionTier;
   subscriptionEnd: string | null;
   isLoading: boolean;
+  /** True once the first checkSubscription call has resolved (cache or network). */
+  initialCheckDone: boolean;
   // Trial state
   isTrialing: boolean;
   trialDaysLeft: number;
@@ -115,6 +117,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>("free");
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [isTrialing, setIsTrialing] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const [trialExpired, setTrialExpired] = useState(false);
@@ -157,6 +160,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         setSubscribed(false);
         setSubscriptionTier("free");
         setSubscriptionEnd(null);
+        setInitialCheckDone(true);
         return;
       }
 
@@ -169,6 +173,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
             setSubscribed(data.subscribed || false);
             setSubscriptionTier(data.tier || "free");
             setSubscriptionEnd(data.end || null);
+            setInitialCheckDone(true);
             return;
           }
         }
@@ -176,9 +181,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke("check-subscription", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        // Race the edge-function call against an 8 s timeout so it never hangs
+        // the promise indefinitely.  On fresh installs the function cold-starts
+        // and occasionally takes >10 s — without this race, the promise sits
+        // pending forever and the cache never gets populated.
+        const result = await Promise.race([
+          supabase.functions.invoke("check-subscription", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("check-subscription timeout")), 8000)
+          ),
+        ]);
+        const { data, error } = result as { data: any; error: any };
         if (error) throw error;
         const isSubscribed = data.subscribed || false;
         const tier = data.subscription_tier || "free";
@@ -202,6 +217,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         setSubscriptionTier("free");
       } finally {
         setIsLoading(false);
+        setInitialCheckDone(true);
       }
     },
     [user, session, cacheSubscriptionData]
@@ -316,24 +332,30 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const getFeatureLimits = useCallback((): FeatureLimits => {
     switch (subscriptionTier) {
-      case "elite":
-      case "premium":
-      case "enterprise": return { shift_history_days: -1 };
-      case "pro":        return { shift_history_days: 90 };
-      case "basic":      return { shift_history_days: 30 };
-      default:           return { shift_history_days: 7 };
+      case "elite":      return { shift_history_days: -1, dynamic_heatmap_days: -1 };
+      case "pro":        return { shift_history_days: 90, dynamic_heatmap_days: 90 };
+      case "basic":      return { shift_history_days: 30, dynamic_heatmap_days: 30 };
+      default:           return { shift_history_days: 7, dynamic_heatmap_days: 0 };
     }
   }, [subscriptionTier]);
 
   useEffect(() => {
+    // Reset so downstream consumers (History, TaxReport) wait for the new check.
+    setInitialCheckDone(false);
     if (user && session) {
       // Use cached subscription if fresh (< 2 hrs) — avoids a Stripe round-trip on every login.
       // Pass forceRefresh=true only when the cache is stale or missing.
       checkSubscription(false);
+      // Safety: even though pages no longer gate on initialCheckDone, some
+      // components (FeatureGate, plan badges) still read it to decide what to
+      // render.  Force-unblock after 2 s so they fall back to defaults.
+      const safetyTimer = setTimeout(() => setInitialCheckDone(true), 2000);
+      return () => clearTimeout(safetyTimer);
     } else {
       setSubscribed(false);
       setSubscriptionTier("free");
       setSubscriptionEnd(null);
+      setInitialCheckDone(true);
     }
   }, [user?.id]);
 
@@ -344,6 +366,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         subscriptionTier,
         subscriptionEnd,
         isLoading,
+        initialCheckDone,
         isTrialing,
         trialDaysLeft,
         trialExpired,

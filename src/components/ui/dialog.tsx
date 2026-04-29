@@ -40,7 +40,7 @@ function DialogTrigger({
   children,
   asChild,
 }: {
-  children: React.ReactElement;
+  children: React.ReactElement<any>;
   asChild?: boolean;
 }) {
   const { onOpenChange } = React.useContext(DialogContext);
@@ -154,7 +154,7 @@ function DialogDescription({
   );
 }
 
-function DialogClose({ children }: { children: React.ReactElement }) {
+function DialogClose({ children }: { children: React.ReactElement<any> }) {
   const { onOpenChange } = React.useContext(DialogContext);
   return React.cloneElement(children, {
     onPress: () => onOpenChange(false),

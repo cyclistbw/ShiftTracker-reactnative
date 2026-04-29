@@ -1,11 +1,12 @@
 import * as React from "react";
-import { View, Text } from "react-native";
+import { View, Text, ViewStyle } from "react-native";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps {
   variant?: "default" | "secondary" | "destructive" | "outline";
   className?: string;
   children?: React.ReactNode;
+  style?: ViewStyle;
 }
 
 const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
@@ -22,9 +23,10 @@ const variantTextClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
   outline: "text-foreground",
 };
 
-export function Badge({ variant = "default", className, children }: BadgeProps) {
+export function Badge({ variant = "default", className, children, style }: BadgeProps) {
   return (
     <View
+      style={style}
       className={cn(
         "inline-flex items-center rounded-full border px-2.5 py-0.5",
         variantClasses[variant],

@@ -143,7 +143,7 @@ async function scheduleTrialNotifications(trialEnd: Date): Promise<void> {
     offsetMs: number,
     title: string,
     body: string,
-    data: object
+    data: Record<string, unknown>
   ) => {
     const fireDate = new Date(trialEnd.getTime() + offsetMs);
     if (fireDate <= now) return; // already in the past

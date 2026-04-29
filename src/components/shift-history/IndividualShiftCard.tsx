@@ -3,12 +3,11 @@
 import { View, Text } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, PenLine, Trash2, Receipt, Plus } from "lucide-react-native";
+import { Upload, PenLine, Trash2 } from "lucide-react-native";
 import { format } from "date-fns";
 import { Shift } from "@/types/shift";
 import { DatabaseExpense } from "@/lib/expense-storage";
 import { calculateShiftSummary } from "@/lib/storage";
-import { getReceiptImageUrl } from "@/lib/expense-storage";
 import { useContentMode } from "@/context/ContentModeContext";
 import { formatCurrencyWithContentMode } from "@/utils/analytics-utils";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
@@ -74,11 +73,6 @@ const IndividualShiftCard = ({
       ? shift.tasksCompleted / summary.totalHours
       : 0;
 
-  const handleViewReceipt = async (imagePath: string) => {
-    const result = await getReceiptImageUrl(imagePath);
-    if (result.success && result.url) onViewReceipt(result.url);
-  };
-
   return (
     <View className="bg-card p-3 rounded-md border mb-2">
       {/* Header row */}
@@ -110,11 +104,6 @@ const IndividualShiftCard = ({
             <PenLine size={12} color="#2563eb" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6"
-            onPress={() => onAddExpense(shift)}
-          >
-            <Plus size={12} color="#7c3aed" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6"
             onPress={() => onDeleteShift(shift.id)}
             disabled={deletingShift === shift.id}
           >
@@ -143,36 +132,6 @@ const IndividualShiftCard = ({
         )}
       </View>
 
-      {/* Expenses */}
-      {databaseExpenses.length > 0 && (
-        <View className="mt-2 pt-2 border-t">
-          <Text className="text-xs text-muted-foreground mb-1">Expenses:</Text>
-          {databaseExpenses.map((expense) => (
-            <View key={expense.id} className="flex-row justify-between items-center mb-1">
-              <Text className="text-xs text-foreground flex-1">{expense.description}</Text>
-              <View className="flex-row items-center gap-1">
-                <Text className="text-xs text-foreground">{formatCurrency(Number(expense.amount))}</Text>
-                {expense.receipt_image_path && (
-                  <Button variant="ghost" size="icon" className="h-4 w-4"
-                    onPress={() => handleViewReceipt(expense.receipt_image_path!)}
-                  >
-                    <Receipt size={10} color="#16a34a" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" className="h-4 w-4" onPress={() => onEditExpense(expense)}>
-                  <PenLine size={10} color="#2563eb" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-4 w-4"
-                  onPress={() => onDeleteExpense(expense.id)}
-                  disabled={deletingExpense === expense.id}
-                >
-                  <Trash2 size={10} color="#dc2626" />
-                </Button>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
     </View>
   );
 };

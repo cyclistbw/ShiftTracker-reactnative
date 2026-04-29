@@ -2,8 +2,7 @@
 // 🚩 FLAG: <img src> → <Image source={{ uri }} />; window.location.href debug logs removed
 // 🚩 FLAG: saveShifts/getShifts now async (AsyncStorage); must be awaited
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, Image, Modal, TouchableWithoutFeedback, ScrollView } from "react-native";
-import { appLogger } from "@/lib/app-logger";
+import { View, Text } from "react-native";
 import { Shift, ShiftSummary } from "@/types/shift";
 import {
   calculateShiftSummary,
@@ -28,18 +27,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { syncShiftToSupabase, deleteShiftFromSupabase } from "@/lib/supabase-functions";
 import {
-  getExpensesForShifts,
-  DatabaseExpense,
-  deleteExpenseFromDatabase,
   deleteExpensesForShift,
-  updateExpenseInDatabase,
 } from "@/lib/expense-storage";
+import type { DatabaseExpense } from "@/lib/expense-storage";
 
 import ShiftSummaryCard from "./shift-history/ShiftSummaryCard";
 import AverageStatisticsCard from "./shift-history/AverageStatisticsCard";
 import ShiftDayGroup from "./shift-history/ShiftDayGroup";
 import EditShiftDialog, { ShiftFormValues } from "./shift-history/EditShiftDialog";
-import EditExpenseDialog from "./shift-history/EditExpenseDialog";
 
 type TimePeriod = "all" | "week" | "prevWeek" | "month" | "prevMonth" | "ytd" | "prevYear" | "year" | "dateRange";
 
@@ -49,14 +44,6 @@ interface ShiftHistoryProps {
   dateRange?: string;
   timePeriod?: TimePeriod;
   onRefreshShifts?: () => Promise<void>;
-}
-
-interface ExpenseFormValues {
-  description: string;
-  amount: string;
-  businessPurpose: string;
-  location: string;
-  receiptImage?: string;
 }
 
 interface DayShiftGroup {
@@ -76,24 +63,13 @@ const ShiftHistory = ({
   timePeriod,
   onRefreshShifts,
 }: ShiftHistoryProps) => {
-  const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
-  const [selectedExpenseShift, setSelectedExpenseShift] = useState<Shift | null>(null);
   const { settings } = useBusinessSettings();
   const mileageRate = settings?.defaultMileageRate || 0.725;
 
-  const closeAddExpenseDialog = () => {
-    setAddExpenseDialogOpen(false);
-    setSelectedExpenseShift(null);
-  };
-
-  // 🚩 FLAG: <img src> dialog → Modal with Image
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shiftToDelete, setShiftToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [shiftToEdit, setShiftToEdit] = useState<Shift | null>(null);
-  const [editExpenseDialogOpen, setEditExpenseDialogOpen] = useState(false);
-  const [expenseToEdit, setExpenseToEdit] = useState<DatabaseExpense | null>(null);
   const [summary, setSummary] = useState<ShiftSummary>({
     totalHours: 0,
     totalIncome: 0,
@@ -107,27 +83,10 @@ const ShiftHistory = ({
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [syncingShift, setSyncingShift] = useState<string | null>(null);
   const [savingShift, setSavingShift] = useState(false);
-  const [savingExpense, setSavingExpense] = useState(false);
   const [deletingShift, setDeletingShift] = useState<string | null>(null);
-  const [deletingExpense, setDeletingExpense] = useState<string | null>(null);
-  const [databaseExpenses, setDatabaseExpenses] = useState<Record<string, DatabaseExpense[]>>({});
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [databaseExpenses] = useState<Record<string, DatabaseExpense[]>>({});
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const loadDatabaseExpenses = async () => {
-    const shiftIds = shifts.map((shift) => shift.id);
-    if (shiftIds.length > 0) {
-      const result = await getExpensesForShifts(shiftIds);
-      if (result.success && result.expensesByShift) {
-        setDatabaseExpenses(result.expensesByShift);
-      }
-    }
-  };
-
-  useEffect(() => {
-    loadDatabaseExpenses();
-  }, [shifts]);
 
   useEffect(() => {
     const uniqueShiftsMap = new Map<string, Shift>();
@@ -138,19 +97,14 @@ const ShiftHistory = ({
     const completedShifts = uniqueShifts.filter((shift) => shift.endTime !== null);
     const newSummary = getHistorySummary(completedShifts, mileageRate);
 
-    const totalDatabaseExpenses = completedShifts.reduce((sum, shift) => {
-      const shiftExpenses = databaseExpenses[shift.id] || [];
-      return sum + shiftExpenses.reduce((expSum, exp) => expSum + Number(exp.amount), 0);
-    }, 0);
-
-    newSummary.totalExpenses = newSummary.mileDeduction + totalDatabaseExpenses;
+    newSummary.totalExpenses = newSummary.mileDeduction;
     newSummary.netIncome = newSummary.totalIncome - newSummary.totalExpenses;
     newSummary.hourlyAverage =
       newSummary.totalHours > 0 ? newSummary.totalIncome / newSummary.totalHours : 0;
 
     setSummary(newSummary);
     groupShiftsByDay(completedShifts);
-  }, [shifts, databaseExpenses]);
+  }, [shifts]);
 
   useEffect(() => {
     if (!shiftToEdit && selectedShiftId) {
@@ -225,11 +179,6 @@ const ShiftHistory = ({
     setEditDialogOpen(true);
   };
 
-  const handleEditExpenseClick = (expense: DatabaseExpense) => {
-    setExpenseToEdit(expense);
-    setEditExpenseDialogOpen(true);
-  };
-
   const handleConfirmDelete = async () => {
     if (!shiftToDelete) return;
     setDeletingShift(shiftToDelete);
@@ -271,14 +220,12 @@ const ShiftHistory = ({
 
       toast({
         title: "Shift deleted",
-        description:
-          "The shift and all associated expenses have been deleted successfully.",
+        description: "The shift has been deleted successfully.",
       });
 
       if (onRefreshShifts) {
         await onRefreshShifts();
       }
-      await loadDatabaseExpenses();
     } catch (error) {
       console.error("Error deleting shift:", error);
       toast({
@@ -288,34 +235,6 @@ const ShiftHistory = ({
       });
     } finally {
       setDeletingShift(null);
-    }
-  };
-
-  const handleDeleteExpense = async (expenseId: string) => {
-    setDeletingExpense(expenseId);
-    try {
-      const result = await deleteExpenseFromDatabase(expenseId);
-      if (result.success) {
-        toast({
-          title: "Expense deleted",
-          description: "The expense has been removed successfully.",
-        });
-        await loadDatabaseExpenses();
-      } else {
-        toast({
-          title: "Error deleting expense",
-          description: result.error || "An error occurred while deleting the expense.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error deleting expense",
-        description: "An unexpected error occurred while deleting the expense.",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingExpense(null);
     }
   };
 
@@ -375,7 +294,6 @@ const ShiftHistory = ({
       setEditDialogOpen(false);
       setShiftToEdit(null);
 
-      await loadDatabaseExpenses();
       if (onRefreshShifts) {
         await onRefreshShifts();
       }
@@ -387,45 +305,6 @@ const ShiftHistory = ({
       });
     } finally {
       setSavingShift(false);
-    }
-  };
-
-  const handleSaveExpense = async (values: ExpenseFormValues) => {
-    if (!expenseToEdit) return;
-    setSavingExpense(true);
-
-    try {
-      const result = await updateExpenseInDatabase(expenseToEdit.id, {
-        description: values.description,
-        amount: Number(values.amount),
-        business_purpose: values.businessPurpose,
-        location: values.location,
-        receiptImage: values.receiptImage,
-      });
-
-      if (result.success) {
-        toast({
-          title: "Expense updated",
-          description: "The expense has been updated successfully.",
-        });
-        await loadDatabaseExpenses();
-      } else {
-        toast({
-          title: "Error updating expense",
-          description: result.error || "An error occurred while updating the expense.",
-          variant: "destructive",
-        });
-        throw new Error(result.error || "Update failed");
-      }
-    } catch (error) {
-      toast({
-        title: "Error updating expense",
-        description: "An unexpected error occurred while updating the expense.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setSavingExpense(false);
     }
   };
 
@@ -471,63 +350,6 @@ const ShiftHistory = ({
     });
   }, []);
 
-  const handleAddExpenseToShift = (shift: Shift) => {
-    setSelectedExpenseShift(shift);
-    setAddExpenseDialogOpen(true);
-  };
-
-  const handleAddExpense = async (formValues: any) => {
-    appLogger.expenseSave("handleAddExpense called", "ShiftHistory", "handleAddExpense", {
-      selectedShiftId: selectedExpenseShift?.id,
-      hasReceiptImage: !!formValues.receiptImage,
-    });
-
-    if (!selectedExpenseShift) {
-      throw new Error("No shift selected for expense");
-    }
-
-    setSavingExpense(true);
-
-    try {
-      const expenseData = {
-        description: formValues.description,
-        amount: parseFloat(formValues.amount),
-        businessPurpose: formValues.businessPurpose,
-        location: formValues.location,
-        date: new Date(),
-        receiptImage: formValues.receiptImage,
-      };
-
-      const { saveExpenseToDatabase } = await import("@/lib/expense-storage");
-      const result = await saveExpenseToDatabase(expenseData, selectedExpenseShift.id);
-
-      if (result.success) {
-        await loadDatabaseExpenses();
-        toast({
-          title: "Expense added",
-          description: expenseData.receiptImage
-            ? "Expense with receipt photo has been added to your shift."
-            : "Expense has been added to your shift.",
-        });
-        closeAddExpenseDialog();
-      } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to save expense",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while saving the expense",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingExpense(false);
-    }
-  };
-
   const emptySummary: ShiftSummary = {
     totalHours: 0,
     totalIncome: 0,
@@ -569,37 +391,17 @@ const ShiftHistory = ({
               onEditShift={handleEditClick}
               onDeleteShift={handleDeleteClick}
               onSyncShift={handleSyncToSupabase}
-              onEditExpense={handleEditExpenseClick}
-              onDeleteExpense={handleDeleteExpense}
-              onViewReceipt={setSelectedImage}
-              onAddExpense={handleAddExpenseToShift}
+              onEditExpense={() => {}}
+              onDeleteExpense={() => {}}
+              onViewReceipt={() => {}}
+              onAddExpense={() => {}}
               syncingShift={syncingShift}
               deletingShift={deletingShift}
-              deletingExpense={deletingExpense}
+              deletingExpense={null}
             />;
           })}
         </View>
       )}
-
-      {/* 🚩 FLAG: Receipt image dialog → Modal with Image */}
-      <Modal
-        visible={!!selectedImage}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedImage(null)}
-      >
-        <TouchableWithoutFeedback onPress={() => setSelectedImage(null)}>
-          <View className="flex-1 bg-black/80 items-center justify-center p-4">
-            {selectedImage && (
-              <Image
-                source={{ uri: selectedImage }}
-                className="w-full h-96 rounded"
-                resizeMode="contain"
-              />
-            )}
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -607,8 +409,7 @@ const ShiftHistory = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Shift</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this shift? This action cannot be undone and will
-              remove the shift and all associated expenses from both local storage and the database.
+              Are you sure you want to delete this shift? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -631,40 +432,6 @@ const ShiftHistory = ({
         shift={shiftToEdit}
         onSave={handleSaveShift}
         saving={savingShift}
-      />
-
-      {/* Edit expense dialog */}
-      <EditExpenseDialog
-        open={editExpenseDialogOpen}
-        onOpenChange={setEditExpenseDialogOpen}
-        expense={expenseToEdit}
-        onSave={handleSaveExpense}
-        saving={savingExpense}
-      />
-
-      {/* Add expense dialog */}
-      <EditExpenseDialog
-        open={addExpenseDialogOpen}
-        onOpenChange={(open) => {
-          if (!open && (isCameraActive || savingExpense)) return;
-          if (!open) {
-            closeAddExpenseDialog();
-          } else {
-            setAddExpenseDialogOpen(true);
-          }
-        }}
-        expense={null}
-        onSave={async (values) => {
-          await handleAddExpense({
-            description: values.description,
-            amount: parseFloat(values.amount),
-            date: new Date(),
-            location: values.location || "",
-            businessPurpose: values.businessPurpose || "",
-            receiptImage: values.receiptImage,
-          });
-        }}
-        saving={savingExpense}
       />
     </View>
   );

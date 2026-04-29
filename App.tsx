@@ -26,6 +26,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -62,10 +64,12 @@ function PushTokenRegistrar() {
 
         const token = (await Notifications.getExpoPushTokenAsync()).data;
 
-        // Store in user_profile for server-side push
+        // Store in user_profile for server-side push.
+        // Cast: the auto-generated types haven't been regenerated since the
+        // push_token column was added.
         await supabase
           .from("user_profile")
-          .update({ push_token: token })
+          .update({ push_token: token } as any)
           .eq("user_id", user.id);
       } catch {
         // Non-critical — notifications are optional

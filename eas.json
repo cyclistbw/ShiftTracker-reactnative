@@ -65,6 +65,17 @@
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "production"
+      }
+    },
+    "internal": {
+      "ios": {
+        "appleId": "shifttrackerapp@gmail.com",
+        "ascAppId": "6761228803",
+        "appleTeamId": "87JQNV462Q"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
         "track": "internal"
       }
     }

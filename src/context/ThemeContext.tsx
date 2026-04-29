@@ -88,11 +88,15 @@ export const THEME_COLORS = {
   },
 } as const;
 
+// Widened to a string-keyed record so both light and dark variants are assignable
+// (the `as const` palettes have incompatible literal types otherwise).
+export type ThemeColors = Record<keyof typeof THEME_COLORS.light, string>;
+
 interface ThemeContextValue {
   isDark: boolean;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
-  colors: typeof THEME_COLORS.light;
+  colors: ThemeColors;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({

@@ -19,21 +19,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import ShiftButton from "@/components/ShiftButton";
-import ExpenseForm from "@/components/ExpenseForm";
 import ShiftSummary from "@/components/ShiftSummary";
 import PlatformSelector from "@/components/PlatformSelector";
 import { saveCurrentShift, getCurrentShift, getShifts, saveShifts } from "@/lib/storage";
 import { syncShiftToSupabase } from "@/lib/supabase-functions";
 import { addToSyncQueue } from "@/lib/sync-queue";
 import { useSyncRetry } from "@/hooks/useSyncRetry";
-import { Shift, Expense } from "@/types/shift";
+import { Shift } from "@/types/shift";
 import { useToast } from "@/hooks/use-toast";
 import { randomUUID } from "expo-crypto";
-import { Plus } from "lucide-react-native";
 import Constants from "expo-constants";
 import FloatingFeedbackButton from "@/components/FloatingFeedbackButton";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
-import { emergencyStorageCleanup } from "@/lib/storage-cleanup";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 
@@ -47,8 +44,6 @@ const Index = () => {
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [endShiftDialogOpen, setEndShiftDialogOpen] = useState(false);
   const [startShiftDialogOpen, setStartShiftDialogOpen] = useState(false);
-  const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [pauseTime, setPauseTime] = useState<Date | null>(null);
   const [totalPausedTime, setTotalPausedTime] = useState(0);
@@ -85,7 +80,6 @@ const Index = () => {
       const shift = await getCurrentShift();
       if (shift) {
         setCurrentShift(shift);
-        setExpenses(shift.expenses);
         setIsPaused(shift.isPaused || false);
         setTotalPausedTime(shift.totalPausedTime || 0);
         if (shift.pauseTime) setPauseTime(new Date(shift.pauseTime));
@@ -127,7 +121,7 @@ const Index = () => {
       isPaused: false, totalPausedTime: 0, isMileageOnly
     };
     try {
-      setCurrentShift(newShift); setExpenses([]); setIsPaused(false);
+      setCurrentShift(newShift); setIsPaused(false);
       setTotalPausedTime(0); setPauseTime(null);
       await saveCurrentShift(newShift);
       console.log("handleStartShift: shift saved successfully");
@@ -231,41 +225,6 @@ const Index = () => {
     } catch (error) { console.error("Error saving new platform:", error); }
   };
 
-  const handleAddExpense = async (expenseData: Omit<Expense, "id" | "timestamp">) => {
-    if (!currentShift) {
-      const storedShift = await getCurrentShift();
-      if (storedShift && storedShift.isActive) {
-        setCurrentShift(storedShift); setExpenses(storedShift.expenses);
-      } else {
-        toast({ title: "Please start a shift first before adding expenses.", variant: "destructive" });
-        throw new Error("No active shift found");
-      }
-    }
-    const newExpense: Expense = { ...expenseData, receiptImage: undefined, id: randomUUID(), timestamp: new Date() };
-    try {
-      const { saveExpenseToDatabase } = await import("@/lib/expense-storage");
-      const shiftToUse = currentShift || getCurrentShift();
-      if (!shiftToUse) throw new Error("Current shift lost during expense processing");
-      const result = await saveExpenseToDatabase(expenseData, shiftToUse.id);
-      if (!result.success) throw new Error(result.error || "Failed to save expense to database");
-      const updatedExpenses = [...expenses, newExpense];
-      setExpenses(updatedExpenses);
-      const updatedShift = { ...shiftToUse, expenses: updatedExpenses };
-      setCurrentShift(updatedShift); await saveCurrentShift(updatedShift);
-      toast({ title: "Expense added and saved successfully" });
-      setAddExpenseDialogOpen(false);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      if (errorMessage.includes("quota") || errorMessage.includes("Storage")) {
-        emergencyStorageCleanup();
-        toast({ title: "Storage full. Please try adding the expense again.", variant: "destructive" });
-      } else {
-        toast({ title: "Failed to save expense: " + errorMessage, variant: "destructive" });
-      }
-      throw error;
-    }
-  };
-
   return (
     <View className="flex-1 bg-background">
       <FloatingFeedbackButton />
@@ -349,34 +308,9 @@ const Index = () => {
               </ScrollView>
               <View className="flex-row gap-2 px-4 py-3 border-t border-border" style={{ paddingBottom: Math.max(12, insets.bottom) }}>
                 <Button variant="outline" onPress={() => setEndShiftDialogOpen(false)} className="flex-1 bg-lime-500">Cancel</Button>
-                <Button variant="outline" onPress={() => setAddExpenseDialogOpen(true)} className="flex-1 bg-blue-500 flex-row items-center gap-1">
-                  <Plus size={16} color="white" />
-                </Button>
                 <Button onPress={handleEndShift} disabled={syncingShift} className="flex-1 bg-red-500">
                   {syncingShift ? "Saving..." : currentShift?.isMileageOnly ? "End Tracking" : "End Shift"}
                 </Button>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
-
-      <Modal visible={addExpenseDialogOpen} transparent animationType="slide" onRequestClose={() => setAddExpenseDialogOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setAddExpenseDialogOpen(false)} />
-          <KeyboardAvoidingView behavior="padding">
-            <View className="bg-background rounded-t-2xl border-t border-border">
-              <View className="px-4 pt-4 pb-2 border-b border-border">
-                <Text className="text-lg font-semibold text-foreground">Add Expense</Text>
-                <Text className="text-sm text-muted-foreground mt-1">Record an expense during your shift.</Text>
-              </View>
-              <ScrollView className="px-4" style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
-                <View className="py-4">
-                  <ExpenseForm onAddExpense={handleAddExpense} />
-                </View>
-              </ScrollView>
-              <View className="flex-row justify-end px-4 py-3 border-t border-border" style={{ paddingBottom: Math.max(12, insets.bottom) }}>
-                <Button variant="outline" onPress={() => setAddExpenseDialogOpen(false)}>Cancel</Button>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -403,11 +337,7 @@ const Index = () => {
           )}
         </View>
         {currentShift && (
-          <View className="mt-8 items-center" style={{ gap: 16 }}>
-            <Button onPress={() => setAddExpenseDialogOpen(true)} variant="secondary" size="sm" className="bg-lime-600 flex-row items-center">
-              <Plus size={16} color="white" />
-              <Text className="text-white ml-2">Add Expense</Text>
-            </Button>
+          <View className="mt-8 items-center">
             <Button onPress={promptEndShift} variant="destructive" size="sm">
               {currentShift.isMileageOnly ? "End Tracking" : "End Shift"}
             </Button>

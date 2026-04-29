@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 
@@ -11,57 +11,72 @@ interface UserPreferences {
   updated_at?: string;
 }
 
+// Module-level dedupe — same reasoning as useBusinessSettings.
+let prefsCachedPromise: Promise<UserPreferences | null> | null = null;
+let prefsCachedUserId: string | null = null;
+
+function invalidatePrefsCache() {
+  prefsCachedPromise = null;
+  prefsCachedUserId = null;
+}
+
 export const useUserPreferences = () => {
   const { user } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load user preferences from Supabase
-  const loadPreferences = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
+  const fetchPrefsForUser = async (userId: string): Promise<UserPreferences | null> => {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error loading preferences:', error);
+      return null;
     }
 
+    if (data) {
+      return { ...data, content_mode_enabled: (data as any).content_mode_enabled || false };
+    }
+
+    // Create defaults if missing
+    const defaultPrefs = { user_id: userId, content_mode_enabled: false };
+    const { data: newData, error: insertError } = await supabase
+      .from('user_preferences')
+      .insert(defaultPrefs)
+      .select()
+      .single();
+    if (insertError) {
+      console.error('Error creating preferences:', insertError);
+      return null;
+    }
+    return newData;
+  };
+
+  const loadPreferences = async () => {
+    if (!user) { setLoading(false); return; }
+
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = setTimeout(() => {
+      console.warn("useUserPreferences safety timeout — forcing loading=false");
+      setLoading(false);
+    }, 6000);
+
     try {
-      const { data, error } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading preferences:', error);
-        return;
+      if (!prefsCachedPromise || prefsCachedUserId !== user.id) {
+        prefsCachedUserId = user.id;
+        prefsCachedPromise = fetchPrefsForUser(user.id);
       }
-
-      if (data) {
-        setPreferences({
-          ...data,
-          content_mode_enabled: (data as any).content_mode_enabled || false
-        });
-      } else {
-        // Create default preferences if none exist
-        const defaultPrefs = {
-          user_id: user.id,
-          content_mode_enabled: false
-        };
-
-        const { data: newData, error: insertError } = await supabase
-          .from('user_preferences')
-          .insert(defaultPrefs)
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error creating preferences:', insertError);
-        } else {
-          setPreferences(newData);
-        }
-      }
+      const result = await prefsCachedPromise;
+      if (result) setPreferences(result);
     } catch (error) {
       console.error('Error in loadPreferences:', error);
+      invalidatePrefsCache();
     } finally {
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
       setLoading(false);
     }
   };
@@ -90,7 +105,15 @@ export const useUserPreferences = () => {
   };
 
   useEffect(() => {
+    if (!user) {
+      invalidatePrefsCache();
+      setLoading(false);
+      return;
+    }
     loadPreferences();
+    return () => {
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    };
   }, [user]);
 
   return {

@@ -168,8 +168,8 @@ const DataImport = () => {
       const importedShifts = processImportedTasks(tasks);
       console.log(`Converted to ${importedShifts.length} shifts`);
 
-      const existingShifts = getShifts();
-      saveShifts([...existingShifts, ...importedShifts]);
+      const existingShifts = await getShifts();
+      await saveShifts([...existingShifts, ...importedShifts]);
 
       const totalEarnings = importedShifts.reduce((sum, shift) => sum + (shift.income || 0), 0);
       setImportResult({

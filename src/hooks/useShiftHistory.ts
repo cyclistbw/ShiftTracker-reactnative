@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Shift, GigAnalyticsData } from "@/types/shift";
 // 🚩 FLAG: getShifts() is now async (AsyncStorage) — must be awaited
 import { getShifts, getFilteredShifts } from "@/lib/storage";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { verifyAnalyticsData } from "@/lib/analytics/data-verification";
 import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { getCachedShifts } from "@/lib/shifts-cache";
 // 🚩 FLAG: DateRange from react-day-picker does not exist in RN — defined inline below
 import { startOfDay, endOfDay } from "date-fns";
 
@@ -40,10 +41,19 @@ export const useShiftHistory = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { getFeatureLimits, subscriptionTier } = useSubscription();
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadShifts = async () => {
     setLoading(true);
     setError(null);
+
+    // Android: HTTP requests can hang indefinitely when the connection pool is
+    // saturated on first login. Guarantee setLoading(false) after 12 s.
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    safetyTimerRef.current = setTimeout(() => {
+      console.warn("useShiftHistory safety timeout — forcing loading=false");
+      setLoading(false);
+    }, 6000);
 
     try {
       console.log("Starting to load shifts...");
@@ -56,46 +66,17 @@ export const useShiftHistory = () => {
       let localShifts: Shift[] = [];
 
       if (user?.id) {
-        // Build both queries before awaiting — run them in parallel with local read
-        const mainQuery = supabase
-          .from('shift_summaries')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('start_time', { ascending: false });
-
-        const importQuery = supabase
-          .from('shift_summaries_import')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('start_time', { ascending: false });
-
-        const [mainResult, importResult, resolvedLocal] = await Promise.all([
-          mainQuery,
-          importQuery,
+        // Use the shared shifts cache — when TaxReport is also loaded (lazy:false
+        // on both tabs) this dedupes the queries instead of firing them twice.
+        const [cached, resolvedLocal] = await Promise.all([
+          getCachedShifts(user.id),
           localShiftsPromise,
         ]);
-
         localShifts = resolvedLocal;
         console.log(`Found ${localShifts.length} local shifts`);
-
-        if (mainResult.error) {
-          console.error("shift_summaries error — code:", mainResult.error.code, "msg:", mainResult.error.message, "details:", mainResult.error.details);
-          toast({
-            title: "Warning",
-            description: `Could not load shifts: ${mainResult.error.message || mainResult.error.code}`,
-            variant: "destructive",
-          });
-        } else {
-          supabaseShifts = mainResult.data || [];
-          console.log(`shift_summaries returned ${supabaseShifts.length} rows`);
-        }
-
-        if (importResult.error) {
-          // shift_summaries_import is optional — silently skip any error
-          console.log("shift_summaries_import unavailable:", importResult.error.code, importResult.error.message);
-        } else {
-          importedShifts = importResult.data || [];
-        }
+        supabaseShifts = cached.regular;
+        importedShifts = cached.imported;
+        console.log(`shift_summaries returned ${supabaseShifts.length} rows`);
       } else {
         console.log("No authenticated user, skipping Supabase queries");
         localShifts = await localShiftsPromise;
@@ -244,14 +225,22 @@ export const useShiftHistory = () => {
       });
       setShifts(localShifts); // also unfiltered — memo handles subscription limit
     } finally {
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user !== undefined) {
-      loadShifts();
-    }
+    if (user === undefined) return;
+    // Fire the fetch immediately — don't gate on subscription resolution.
+    // Subscription tier only trims the displayed list (applySubscriptionLimits),
+    // so it's fine to render shifts before the tier is known and re-render once
+    // it arrives.  Gating on initialCheckDone made the page wait up to 3 s
+    // (or worse, the full Stripe edge-function round-trip on fresh installs).
+    loadShifts();
+    return () => {
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    };
   }, [user]);
 
   const applySubscriptionLimits = (shiftsToLimit: Shift[]): Shift[] => {

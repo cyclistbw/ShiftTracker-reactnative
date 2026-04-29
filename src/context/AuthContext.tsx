@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { Alert } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
+import { invalidateShiftsCache } from "@/lib/shifts-cache";
 
 // Custom scheme redirect for email confirmation.
 // Registered in app.json via the "scheme" field — OS opens app directly when installed.
@@ -12,6 +14,8 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   signIn: (
     email: string,
     password: string,
@@ -31,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -52,16 +57,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error,
         } = await supabase.auth.getSession();
         if (error) {
-          console.error("Error getting initial session — clearing stale tokens:", error);
-          await clearStaleSession();
+          // Do NOT call clearStaleSession here. On Android, getSession() can error
+          // while exchangeCodeForSession() is running concurrently from an email-
+          // confirmation deep link. Wiping AsyncStorage at this point destroys the
+          // PKCE code_verifier and causes the exchange — and the sign-in — to fail.
+          // Simply null out the state; onAuthStateChange will set the correct user
+          // once the deep link exchange completes.
+          console.warn("getSession error on init (may be mid-PKCE exchange):", error.message);
           if (mounted) { setSession(null); setUser(null); }
         } else if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
         }
       } catch (err) {
-        console.error("Unexpected session fetch error:", err);
-        await clearStaleSession();
+        // Same reasoning: don't wipe storage on unexpected errors during init.
+        console.warn("Unexpected getSession error on init:", err);
         if (mounted) { setSession(null); setUser(null); }
       } finally {
         if (mounted) setIsLoading(false);
@@ -77,11 +87,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Any sign-out or failed refresh — purge stale tokens so next login is clean
       if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
         await clearStaleSession();
-        if (mounted) { setSession(null); setUser(null); setIsLoading(false); }
+        if (mounted) { setSession(null); setUser(null); setIsLoading(false); setIsPasswordRecovery(false); }
+        return;
+      }
+      // Password reset deep link — set session but flag recovery mode so the
+      // navigator routes to the ResetPassword screen instead of the app.
+      if (event === "PASSWORD_RECOVERY") {
+        if (mounted) { setSession(session); setUser(session?.user ?? null); setIsPasswordRecovery(true); setIsLoading(false); }
         return;
       }
       setSession(session);
       setUser(session?.user ?? null);
+      // Do NOT clear isPasswordRecovery here — the SIGNED_IN event fires when
+      // setSession() is called from handleUrl (implicit flow password reset).
+      // handleUrl sets isPasswordRecovery=true immediately after setSession(),
+      // so clearing it here would race and wipe the recovery flag before the
+      // navigator can act on it. clearPasswordRecovery() handles the explicit clear.
       setIsLoading(false);
     });
 
@@ -96,28 +117,146 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Handle email verification deep links: shifttracker://auth/callback#access_token=...
+  // Handle email verification / password recovery deep links.
+  // PKCE flow: shifttracker://auth/callback?code=CODE
+  // Implicit fallback: shifttracker://auth/callback#access_token=TOKEN&refresh_token=REFRESH
   useEffect(() => {
+    // Dedupe identical URLs — Linking.getInitialURL (cold start) and the
+    // addEventListener("url") event can both fire for the same deep link,
+    // and PKCE auth codes are single-use so the second call would fail.
+    const processedUrls = new Set<string>();
     const handleUrl = async (url: string) => {
+      if (processedUrls.has(url)) return;
+      processedUrls.add(url);
       if (!url.includes("auth/callback")) return;
+      console.log("[Auth] Deep link received:", url.replace(/code=[^&]+/, "code=***"));
+
+      // Surface server-side errors (e.g. expired/used reset links) to the user
+      // so they understand why the link didn't work.
+      const errorMatch =
+        url.match(/[?&]error_code=([^&#]+)/) ||
+        url.match(/#[^&]*error_code=([^&#]+)/);
+      if (errorMatch) {
+        const code = decodeURIComponent(errorMatch[1]);
+        const descMatch =
+          url.match(/[?&]error_description=([^&#]+)/) ||
+          url.match(/#[^&]*error_description=([^&#]+)/);
+        const desc = descMatch ? decodeURIComponent(descMatch[1]).replace(/\+/g, " ") : code;
+        if (code === "otp_expired" || code === "access_denied") {
+          Alert.alert(
+            "Link expired or already used",
+            "This password reset link is no longer valid. Please request a new one from the Forgot Password page.",
+            [{ text: "OK" }]
+          );
+        } else {
+          Alert.alert("Authentication error", desc, [{ text: "OK" }]);
+        }
+        return;
+      }
+
+      // Detect recovery from the URL itself (Supabase often appends type=recovery
+      // to the redirect URL).  Setting this flag BEFORE the code exchange means
+      // even if the exchange races with navigation, we still route correctly.
+      const urlIsRecovery =
+        /[?&]type=recovery(?:&|$)/.test(url) ||
+        /[?&]type=PASSWORD_RECOVERY(?:&|$)/.test(url) ||
+        /#.*type=recovery/.test(url);
+      if (urlIsRecovery) {
+        console.log("[Auth] Recovery detected from URL params");
+        setIsPasswordRecovery(true);
+      }
+
       try {
-        // PKCE flow: URL has ?code=CODE
-        if (url.includes("code=")) {
-          await supabase.auth.exchangeCodeForSession(url);
+        // ── PKCE flow ───────────────────────────────────────────────────
+        // Extract just the code from query params — the SDK expects the
+        // auth code string, NOT the full URL.
+        const codeMatch = url.match(/[?&]code=([^&#]+)/);
+        if (codeMatch) {
+          const authCode = decodeURIComponent(codeMatch[1]);
+          // Bypass supabase.auth.exchangeCodeForSession — on iOS its internal
+          // process lock or fetch hangs indefinitely (verified via 10s timeout).
+          // Talk to the /token endpoint directly, then call setSession manually.
+          const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+          const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+          const allKeys = await AsyncStorage.getAllKeys();
+          const verifierKey = allKeys.find((k) => k.includes("auth-token-code-verifier"));
+          const storageItem = verifierKey ? await AsyncStorage.getItem(verifierKey) : null;
+          const cleaned = storageItem?.replace(/^"|"$/g, "") ?? "";
+          const [codeVerifier, redirectType] = cleaned.split("/");
+          if (!codeVerifier) {
+            Alert.alert("Reset link error", "Missing PKCE verifier — please request a new password reset email.");
+            return;
+          }
+          try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 15000);
+            const res = await fetch(
+              `${SUPABASE_URL}/auth/v1/token?grant_type=pkce`,
+              {
+                method: "POST",
+                headers: {
+                  apikey: SUPABASE_ANON_KEY,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ auth_code: authCode, code_verifier: codeVerifier }),
+                signal: ctrl.signal,
+              }
+            );
+            clearTimeout(timer);
+            const json = await res.json();
+            if (!res.ok || !json?.access_token || !json?.refresh_token) {
+              Alert.alert(
+                "Reset link error",
+                json?.error_description || json?.msg || `Status ${res.status}`
+              );
+              return;
+            }
+            if (verifierKey) await AsyncStorage.removeItem(verifierKey);
+            // Set recovery flag FIRST so the navigator switches to the Reset
+            // Password screen immediately — don't wait on setSession (its
+            // internal lock can hang on iOS the same way exchangeCodeForSession
+            // does, and the user shouldn't see the login screen in the meantime).
+            if (redirectType === "PASSWORD_RECOVERY") {
+              setIsPasswordRecovery(true);
+            }
+            // setSession in the background with an 8s ceiling — by the time the
+            // user finishes typing their new password, the session will be ready.
+            await Promise.race([
+              supabase.auth.setSession({
+                access_token: json.access_token,
+                refresh_token: json.refresh_token,
+              }),
+              new Promise((resolve) => setTimeout(resolve, 8000)),
+            ]);
+          } catch (e: any) {
+            Alert.alert("Reset link error", `Network error: ${e?.message || String(e)}`);
+          }
           return;
         }
-        // Implicit flow: URL has #access_token=TOKEN&refresh_token=REFRESH
+
+        // ── Implicit flow fallback ──────────────────────────────────────
+        // Handles any in-flight links generated before the PKCE switch.
         const hash = url.split("#")[1];
         if (hash) {
           const params = new URLSearchParams(hash);
           const access_token = params.get("access_token");
           const refresh_token = params.get("refresh_token");
+          const type = params.get("type");
           if (access_token && refresh_token) {
             await supabase.auth.setSession({ access_token, refresh_token });
+            if (type === "recovery") {
+              setIsPasswordRecovery(true);
+            }
           }
+          return;
         }
-      } catch (err) {
-        console.error("Auth callback error:", err);
+
+        // Deep link opened the app but carried no tokens or code.
+        // If the URL itself signaled recovery, we already set the flag above —
+        // the user can request a new password and submit it without auto-login.
+        console.warn("[Auth] Deep link had no code or tokens — auto-login unavailable");
+      } catch (err: any) {
+        console.error("[Auth] Deep link handling error:", err);
       }
     };
 
@@ -177,6 +316,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
+      // Invalidate in-memory shift cache so the next user gets fresh data.
+      invalidateShiftsCache();
       // Clear AsyncStorage session token (replaces localStorage)
       const sessionToken = await AsyncStorage.getItem("st_session_token");
       if (sessionToken && user) {
@@ -193,23 +334,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Clear all user-specific AsyncStorage keys
+      // NOTE: subscription_status is intentionally NOT cleared here — the cache
+      // validates userId and has a 2-hr expiry, so it's safe to keep across
+      // logout.  Clearing it forced a slow Stripe edge-function round-trip on
+      // every re-login, which blocked Settings/History/TaxReport from loading.
       const keysToRemove = [
         "shifts",
         "currentShift",
         "analytics_storage",
-        "subscription_status",
       ];
 
-      // Also remove per-user onboarding keys
+      // Remove per-user transient keys (NOT st_onboarding_completed_ — that's a
+      // per-user cache that survives sign-out so checkOnboarding doesn't have to
+      // re-query Supabase on the next login, which caused the Login screen to hang
+      // on Android until the slow DB round-trip finished)
       const allKeys = await AsyncStorage.getAllKeys();
       allKeys.forEach((key) => {
         if (
-          key.startsWith("st_onboarding_completed_") ||
-          (user?.id &&
-            (key.includes(user.id) ||
-              key.includes("daily_briefing_") ||
-              key.includes("daily_plan_") ||
-              key.includes("daily_stats_")))
+          user?.id &&
+          (key.includes(user.id) ||
+            key.includes("daily_briefing_") ||
+            key.includes("daily_plan_") ||
+            key.includes("daily_stats_"))
         ) {
           keysToRemove.push(key);
         }
@@ -226,8 +372,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const clearPasswordRecovery = useCallback(() => setIsPasswordRecovery(false), []);
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isPasswordRecovery, clearPasswordRecovery, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

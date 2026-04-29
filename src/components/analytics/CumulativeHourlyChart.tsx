@@ -250,7 +250,6 @@ const CumulativeHourlyChart: React.FC<CumulativeHourlyChartProps> = ({ selectedY
                 width={chartWidth}
                 height={200}
                 spacing={pointSpacing}
-                scrollEnabled={false}
                 color={lineColor}
                 thickness={2}
                 curved

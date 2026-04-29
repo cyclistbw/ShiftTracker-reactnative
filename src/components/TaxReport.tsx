@@ -6,14 +6,13 @@
 // 🚩 FLAG: <div>/<span> → <View>/<Text>; grid → flex-row flex-wrap
 import { useState, useMemo } from "react";
 import { View, Text, Pressable, ScrollView, useWindowDimensions } from "react-native";
-import { BarChart, PieChart } from "react-native-gifted-charts";
+import { BarChart } from "react-native-gifted-charts";
 import { Shift } from "@/types/shift";
 import {
   getYearlyReportData,
   getAvailableYears,
   getQuarterlyBreakdown,
   getMonthlyBreakdown,
-  getCategoryBreakdown,
 } from "@/lib/tax-storage";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -29,7 +28,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DollarSign,
-  Receipt,
   Clock,
   Car,
   FileText,
@@ -46,7 +44,6 @@ interface TaxReportProps {
   shifts: Shift[];
 }
 
-const COLORS = ["#4caf50", "#8bc34a", "#cddc39", "#ffeb3b", "#ffc107", "#ff9800"];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const TAX_BRACKETS = [
@@ -92,10 +89,6 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
   );
   const monthlyData = useMemo(
     () => getMonthlyBreakdown(shifts, selectedYear, mileageRate),
-    [shifts, selectedYear, mileageRate]
-  );
-  const categoryData = useMemo(
-    () => getCategoryBreakdown(shifts, selectedYear, mileageRate),
     [shifts, selectedYear, mileageRate]
   );
 
@@ -348,8 +341,8 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
 
             <View className="w-1/2">
               <View className="flex-row items-center">
-                <Receipt size={16} color={limeIconColor} />
-                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Total Expenses</Text>
+                <FileText size={16} color={limeIconColor} />
+                <Text style={{ color: limeLabelColor }} className="text-sm ml-1">Total Deductions</Text>
               </View>
               <Text className="text-lg font-medium text-foreground">
                 {formatCurrency(yearlyData.totalExpenses)}
@@ -455,7 +448,6 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
         <TabsList>
           <TabsTrigger value="quarterly">Quarterly</TabsTrigger>
           <TabsTrigger value="monthly">Monthly</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
         </TabsList>
 
         {/* Quarterly Tab */}
@@ -722,67 +714,6 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
           </Card>
         </TabsContent>
 
-        {/* Expenses Tab */}
-        <TabsContent value="expenses" className="pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-medium">Expense Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {categoryData.length > 0 ? (
-                <View className="gap-4">
-                  <View className="items-center">
-                    <PieChart
-                      data={categoryData.map((cat, i) => ({
-                        value: cat.amount,
-                        color: COLORS[i % COLORS.length],
-                        text: `${((cat.amount / categoryData.reduce((sum, c) => sum + c.amount, 0)) * 100).toFixed(0)}%`,
-                        textColor: "#fff",
-                        textSize: 11,
-                      }))}
-                      donut
-                      innerRadius={60}
-                      radius={90}
-                      innerCircleColor={themeColors.card}
-                      showText
-                      centerLabelComponent={() => (
-                        <View style={{ alignItems: "center", backgroundColor: themeColors.card, borderRadius: 60, padding: 4 }}>
-                          <Text style={{ color: themeColors.mutedForeground, fontSize: 11 }}>Total</Text>
-                          <Text style={{ color: themeColors.foreground, fontSize: 13, fontWeight: "bold" }}>
-                            {formatCurrency(categoryData.reduce((sum, c) => sum + c.amount, 0))}
-                          </Text>
-                        </View>
-                      )}
-                    />
-                  </View>
-                  <View className="rounded-md border border-border overflow-hidden">
-                    {categoryData.map((category, index) => (
-                      <View
-                        key={index}
-                        className="flex-row items-center justify-between p-3"
-                        style={index > 0 ? { borderTopWidth: 1, borderTopColor: themeColors.border } : {}}
-                      >
-                        <View className="flex-row items-center">
-                          <View
-                            style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS[index % COLORS.length], marginRight: 8 }}
-                          />
-                          <Text className="text-foreground text-sm">{category.category}</Text>
-                        </View>
-                        <Text className="font-medium text-foreground text-sm">
-                          {formatCurrency(category.amount)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View className="items-center py-4">
-                  <Text className="text-muted-foreground">No expenses recorded</Text>
-                </View>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Tax tips */}
@@ -792,7 +723,6 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
         </CardHeader>
         <CardContent className="gap-2">
           {[
-            "Keep all receipts for your expenses",
             "Track your mileage with detailed logs",
             "Consider speaking with a tax professional",
             "Mileage may be deductible as a business expense",
