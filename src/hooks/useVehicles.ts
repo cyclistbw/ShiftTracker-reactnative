@@ -29,29 +29,40 @@ export const useVehicles = () => {
       setVehicles([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const loadVehicles = async () => {
     if (!user) return;
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 24000);
+    const safetyTimer = setTimeout(() => setLoading(false), 6000);
 
     try {
       const currentYear = new Date().getFullYear();
 
-      const [vehiclesResult, shiftsResult] = await Promise.all([
-        supabase
-          .from('user_vehicles')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('shift_summaries')
-          .select('summary_data, end_time')
-          .eq('user_id', user.id)
-          .gte('end_time', `${currentYear}-01-01T00:00:00Z`)
-          .lte('end_time', `${currentYear}-12-31T23:59:59Z`)
-          .not('summary_data', 'is', null)
-          .order('end_time', { ascending: false }),
-      ]);
+      const [vehiclesResult, shiftsResult] = await new Promise<[any, any]>((resolve, reject) => {
+        const hardTimer = setTimeout(() => reject(new Error('hard timeout')), 25000);
+        Promise.all([
+          supabase
+            .from('user_vehicles')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true })
+            .abortSignal(controller.signal),
+          supabase
+            .from('shift_summaries')
+            .select('summary_data, end_time')
+            .eq('user_id', user.id)
+            .gte('end_time', `${currentYear}-01-01T00:00:00Z`)
+            .lte('end_time', `${currentYear}-12-31T23:59:59Z`)
+            .not('summary_data', 'is', null)
+            .order('end_time', { ascending: false })
+            .abortSignal(controller.signal),
+        ]).then(
+          (val) => { clearTimeout(hardTimer); resolve(val); },
+          (err) => { clearTimeout(hardTimer); reject(err); }
+        );
+      });
 
       if (vehiclesResult.error) {
         console.error("Error loading vehicles:", vehiclesResult.error);
@@ -98,6 +109,8 @@ export const useVehicles = () => {
     } catch (error) {
       console.error("Exception loading vehicles:", error);
     } finally {
+      clearTimeout(abortTimer);
+      clearTimeout(safetyTimer);
       setLoading(false);
     }
   };

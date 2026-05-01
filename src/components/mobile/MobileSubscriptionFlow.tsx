@@ -2,7 +2,7 @@
 // 🚩 FLAG: <div>/<span>/<ul>/<li> → <View>/<Text>
 // 🚩 FLAG: onClick → onPress
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { useSubscription } from '@/context/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,10 +13,6 @@ import {
   FileText, Star, Zap, Users,
 } from 'lucide-react-native';
 
-const PRICE_IDS = {
-  eliteMonthly: 'price_1TDud806hf9LhstgxzZ74Uvo',
-  eliteAnnual:  'price_1TDud806hf9LhstgrCYAFuIa',
-};
 
 const ELITE_FEATURES = [
   { text: "Add & Track Shifts",                         icon: Clock },
@@ -46,7 +42,8 @@ const MobileSubscriptionFlow = () => {
     subscriptionTier,
     isLoading,
     checkSubscription,
-    createCheckoutSession,
+    purchaseSubscription,
+    restorePurchases,
   } = useSubscription();
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'annual'>('annual');
@@ -56,8 +53,7 @@ const MobileSubscriptionFlow = () => {
   }, [checkSubscription]);
 
   const handleUpgrade = async () => {
-    const priceId = selectedBilling === 'annual' ? PRICE_IDS.eliteAnnual : PRICE_IDS.eliteMonthly;
-    await createCheckoutSession(priceId, 'elite');
+    await purchaseSubscription(selectedBilling);
   };
 
   const refreshStatus = async () => {
@@ -190,12 +186,12 @@ const MobileSubscriptionFlow = () => {
             <View style={{ alignItems: 'center' }}>
               {selectedBilling === 'monthly' ? (
                 <>
-                  <Text className="text-3xl font-bold text-foreground">$12.97</Text>
+                  <Text className="text-3xl font-bold text-foreground">$12.99</Text>
                   <Text className="text-sm text-muted-foreground">per month</Text>
                 </>
               ) : (
                 <>
-                  <Text className="text-3xl font-bold text-foreground">$99.97</Text>
+                  <Text className="text-3xl font-bold text-foreground">$99.99</Text>
                   <Text className="text-sm text-muted-foreground">per year ($8.33/mo)</Text>
                 </>
               )}
@@ -238,8 +234,24 @@ const MobileSubscriptionFlow = () => {
             <Text className="text-xs text-muted-foreground text-center">
               7-day free trial · Cancel anytime
             </Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4 }}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://shifttrackerapp.com/privacy-policy')}>
+                <Text style={{ color: '#6b7280', fontSize: 11, textDecorationLine: 'underline' }}>Privacy Policy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Linking.openURL('https://shifttrackerapp.com/terms-of-service')}>
+                <Text style={{ color: '#6b7280', fontSize: 11, textDecorationLine: 'underline' }}>Terms of Use</Text>
+              </TouchableOpacity>
+            </View>
           </CardContent>
         </Card>
+
+        {/* Restore Purchases */}
+        {!isElite && (
+          <Button variant="ghost" onPress={restorePurchases} disabled={isLoading}>
+            <Text style={{ color: '#6b7280', fontSize: 13 }}>Restore Purchases</Text>
+          </Button>
+        )}
 
         {/* Notice */}
         <Card style={{ backgroundColor: '#f9fafb' }}>
@@ -247,8 +259,8 @@ const MobileSubscriptionFlow = () => {
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
               <AlertCircle size={18} color="#6b7280" />
               <Text className="text-xs text-muted-foreground flex-1">
-                Subscription management is handled through our secure payment system.
-                You'll be redirected to your device's web browser to complete the process.
+                Subscriptions are managed through Apple or Google. Payment will be charged to your
+                account at confirmation. Cancel anytime in your device's subscription settings.
               </Text>
             </View>
           </CardContent>

@@ -1,16 +1,14 @@
-/**
- * SubscriptionContext — RN version.
- * Replaces: localStorage → AsyncStorage, window.open → Linking.openURL
- */
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
+  useRef,
   useCallback,
 } from "react";
-import { Linking, Alert } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Purchases from "react-native-purchases";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { UsageTracker, FEATURE_KEYS, getFeaturePeriodType } from "@/lib/usage-tracking";
@@ -83,8 +81,8 @@ const FEATURE_ACCESS: Record<SubscriptionTier, string[]> = {
 };
 
 export interface FeatureLimits {
-  shift_history_days: number; // -1 = unlimited
-  dynamic_heatmap_days: number; // -1 = unlimited, 0 = locked
+  shift_history_days: number;
+  dynamic_heatmap_days: number;
 }
 
 type SubscriptionContextType = {
@@ -92,15 +90,14 @@ type SubscriptionContextType = {
   subscriptionTier: SubscriptionTier;
   subscriptionEnd: string | null;
   isLoading: boolean;
-  /** True once the first checkSubscription call has resolved (cache or network). */
   initialCheckDone: boolean;
-  // Trial state
   isTrialing: boolean;
   trialDaysLeft: number;
   trialExpired: boolean;
   trialEnd: Date | null;
   checkSubscription: (forceRefresh?: boolean) => Promise<void>;
-  createCheckoutSession: (priceId: string, tier: SubscriptionTier) => Promise<void>;
+  purchaseSubscription: (type: "monthly" | "annual") => Promise<void>;
+  restorePurchases: () => Promise<void>;
   openCustomerPortal: () => Promise<void>;
   hasFeature: (feature: string) => boolean;
   canAccessFeature: (feature: string) => boolean;
@@ -110,6 +107,9 @@ type SubscriptionContextType = {
 };
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
+
+// Must match the entitlement identifier you create in the RevenueCat dashboard
+const RC_ENTITLEMENT = "elite";
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
@@ -122,6 +122,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const [trialExpired, setTrialExpired] = useState(false);
   const [trialEnd, setTrialEnd] = useState<Date | null>(null);
+  const rcConfigured = useRef(false);
 
   // Load cached subscription from AsyncStorage on mount
   useEffect(() => {
@@ -137,6 +138,27 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       } catch {}
     });
   }, []);
+
+  // Configure RevenueCat whenever the authenticated user changes
+  useEffect(() => {
+    if (!user) {
+      rcConfigured.current = false;
+      return;
+    }
+    const iosKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
+    const androidKey = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY;
+    const apiKey = Platform.OS === "ios" ? iosKey : androidKey;
+    if (!apiKey) {
+      console.warn("[RC] RevenueCat API key not set — add EXPO_PUBLIC_REVENUECAT_IOS_KEY / _ANDROID_KEY to EAS env");
+      return;
+    }
+    try {
+      Purchases.configure({ apiKey, appUserID: user.id });
+      rcConfigured.current = true;
+    } catch (err) {
+      console.warn("[RC] configure error:", err);
+    }
+  }, [user?.id]);
 
   const cacheSubscriptionData = useCallback(
     async (data: { subscribed: boolean; tier: SubscriptionTier; end: string | null }) => {
@@ -154,6 +176,28 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     [user]
   );
 
+  // Sync to Supabase so server-side Edge Functions (feature gates, etc.) stay current
+  const syncToSupabase = useCallback(
+    async (isSubscribed: boolean, tier: SubscriptionTier, subEnd: string | null) => {
+      if (!user?.email) return;
+      await supabase
+        .from("subscribers")
+        .upsert(
+          {
+            email: user.email,
+            user_id: user.id,
+            subscribed: isSubscribed,
+            subscription_tier: tier,
+            subscription_end: subEnd,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "email" }
+        )
+        .catch((err) => console.warn("[RC] Supabase sync error:", err));
+    },
+    [user]
+  );
+
   const checkSubscription = useCallback(
     async (forceRefresh = false) => {
       if (!user || !session) {
@@ -167,109 +211,144 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (!forceRefresh) {
         const cached = await AsyncStorage.getItem("subscription_status");
         if (cached) {
-          const data = JSON.parse(cached);
-          const age = Date.now() - new Date(data.lastVerified || 0).getTime();
-          if (age < 2 * 60 * 60 * 1000 && data.userId === user.id) {
-            setSubscribed(data.subscribed || false);
-            setSubscriptionTier(data.tier || "free");
-            setSubscriptionEnd(data.end || null);
-            setInitialCheckDone(true);
-            return;
-          }
+          try {
+            const data = JSON.parse(cached);
+            const age = Date.now() - new Date(data.lastVerified || 0).getTime();
+            if (age < 2 * 60 * 60 * 1000 && data.userId === user.id) {
+              setSubscribed(data.subscribed || false);
+              setSubscriptionTier(data.tier || "free");
+              setSubscriptionEnd(data.end || null);
+              setInitialCheckDone(true);
+              return;
+            }
+          } catch {}
         }
+      }
+
+      if (!rcConfigured.current) {
+        setInitialCheckDone(true);
+        return;
       }
 
       setIsLoading(true);
       try {
-        // Race the edge-function call against an 8 s timeout so it never hangs
-        // the promise indefinitely.  On fresh installs the function cold-starts
-        // and occasionally takes >10 s — without this race, the promise sits
-        // pending forever and the cache never gets populated.
-        const result = await Promise.race([
-          supabase.functions.invoke("check-subscription", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("check-subscription timeout")), 8000)
-          ),
-        ]);
-        const { data, error } = result as { data: any; error: any };
-        if (error) throw error;
-        const isSubscribed = data.subscribed || false;
-        const tier = data.subscription_tier || "free";
+        const customerInfo = await Purchases.getCustomerInfo();
+        const activeEntitlement = customerInfo.entitlements.active[RC_ENTITLEMENT];
+        const isSubscribed = activeEntitlement !== undefined;
+        const tier: SubscriptionTier = isSubscribed ? "elite" : "free";
+        const subEnd = activeEntitlement?.expirationDate ?? null;
+
         setSubscribed(isSubscribed);
         setSubscriptionTier(tier);
-        setSubscriptionEnd(data.subscription_end || null);
-        await cacheSubscriptionData({
-          subscribed: isSubscribed,
-          tier,
-          end: data.subscription_end || null,
-        });
-        // Evaluate trial state after every live subscription check
+        setSubscriptionEnd(subEnd);
+        await cacheSubscriptionData({ subscribed: isSubscribed, tier, end: subEnd });
+        await syncToSupabase(isSubscribed, tier, subEnd);
+
         const trial: TrialStatus = await getTrialStatus(isSubscribed);
         setIsTrialing(trial.isTrialing);
         setTrialDaysLeft(trial.trialDaysLeft);
         setTrialExpired(trial.trialExpired);
         setTrialEnd(trial.trialEnd);
       } catch (error) {
-        console.error("Subscription check failed:", error);
-        setSubscribed(false);
-        setSubscriptionTier("free");
+        console.error("[RC] checkSubscription failed:", error);
       } finally {
         setIsLoading(false);
         setInitialCheckDone(true);
       }
     },
-    [user, session, cacheSubscriptionData]
+    [user, session, cacheSubscriptionData, syncToSupabase]
   );
 
-  const createCheckoutSession = useCallback(
-    async (priceId: string, tier: SubscriptionTier) => {
-      if (!user || !session) return;
+  const purchaseSubscription = useCallback(
+    async (type: "monthly" | "annual") => {
+      if (!user) {
+        Alert.alert("Not Signed In", "Please sign in to purchase a subscription.");
+        return;
+      }
+      if (!rcConfigured.current) {
+        Alert.alert("Configuration Error", "Payment system not ready. Please restart the app and try again.");
+        return;
+      }
+      let purchaseSucceeded = false;
       try {
-        const { data, error } = await supabase.functions.invoke("create-checkout", {
-          body: {
-            priceId,
-            tier,
-            // Deep-link URLs so Stripe redirects back to the native app
-            successUrl: "shifttracker://mobile-subscription",
-            cancelUrl: "shifttracker://mobile-subscription",
-          },
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        // data?.error contains the real message even when HTTP status is non-2xx
-        if (data?.error) throw new Error(data.error);
-        if (error) throw new Error(error.message || JSON.stringify(error));
-        if (!data?.url) throw new Error("No checkout URL returned");
-        // Start trial tracking before leaving the app for Stripe checkout
+        const offerings = await Purchases.getOfferings();
+        const pkg = type === "monthly" ? offerings.current?.monthly : offerings.current?.annual;
+
+        if (!pkg) {
+          Alert.alert(
+            "Not Available",
+            "This subscription package is not available right now. Please try again later.",
+            [{ text: "OK" }]
+          );
+          return;
+        }
+
         await initTrialTracking(user.id);
-        // Open Stripe in external browser — replaces window.open(url, '_system')
-        await Linking.openURL(data.url);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("Checkout creation failed:", msg);
-        Alert.alert("Unable to Open Checkout", msg, [{ text: "OK" }]);
+        const { customerInfo } = await Purchases.purchasePackage(pkg);
+        const activeEntitlement = customerInfo.entitlements.active[RC_ENTITLEMENT];
+        const isSubscribed = activeEntitlement !== undefined;
+
+        if (isSubscribed) {
+          purchaseSucceeded = true;
+          const subEnd = activeEntitlement?.expirationDate ?? null;
+          setSubscribed(true);
+          setSubscriptionTier("elite");
+          setSubscriptionEnd(subEnd);
+          cacheSubscriptionData({ subscribed: true, tier: "elite", end: subEnd }).catch(() => {});
+          syncToSupabase(true, "elite", subEnd).catch(() => {});
+        }
+      } catch (err: any) {
+        if (err?.userCancelled) return;
+        if (purchaseSucceeded) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[RC] purchaseSubscription failed:", msg);
+        Alert.alert("Purchase Failed", msg, [{ text: "OK" }]);
       }
     },
-    [user, session]
+    [user, cacheSubscriptionData, syncToSupabase]
   );
 
-  const openCustomerPortal = useCallback(async () => {
-    if (!user || !session) return;
+  const restorePurchases = useCallback(async () => {
+    if (!rcConfigured.current) return;
     try {
-      const { data, error } = await supabase.functions.invoke("customer-portal", {
-        body: {
-          // Deep-link URL so Stripe customer portal redirects back to the native app
-          returnUrl: "shifttracker://mobile-subscription",
-        },
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (error || !data?.url) throw error || new Error("No URL returned");
-      await Linking.openURL(data.url);
-    } catch (error) {
-      console.error("Customer portal failed:", error);
+      const customerInfo = await Purchases.restorePurchases();
+      const activeEntitlement = customerInfo.entitlements.active[RC_ENTITLEMENT];
+      const isSubscribed = activeEntitlement !== undefined;
+      const tier: SubscriptionTier = isSubscribed ? "elite" : "free";
+      const subEnd = activeEntitlement?.expirationDate ?? null;
+
+      setSubscribed(isSubscribed);
+      setSubscriptionTier(tier);
+      setSubscriptionEnd(subEnd);
+      await cacheSubscriptionData({ subscribed: isSubscribed, tier, end: subEnd });
+      await syncToSupabase(isSubscribed, tier, subEnd);
+
+      Alert.alert(
+        isSubscribed ? "Purchases Restored" : "No Purchases Found",
+        isSubscribed
+          ? "Your Elite subscription has been restored."
+          : "No active subscriptions were found for this account.",
+        [{ text: "OK" }]
+      );
+    } catch (err: any) {
+      if (err?.userCancelled) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert("Restore Failed", msg, [{ text: "OK" }]);
     }
-  }, [user, session]);
+  }, [cacheSubscriptionData, syncToSupabase]);
+
+  const openCustomerPortal = useCallback(async () => {
+    try {
+      await Purchases.showManageSubscriptions();
+    } catch {
+      // Fallback: open platform subscription management directly
+      const url =
+        Platform.OS === "ios"
+          ? "itms-apps://apps.apple.com/account/subscriptions"
+          : "https://play.google.com/store/account/subscriptions";
+      await Linking.openURL(url).catch(() => {});
+    }
+  }, []);
 
   const hasFeature = useCallback(
     (feature: string) => FEATURE_ACCESS[subscriptionTier]?.includes(feature) ?? false,
@@ -332,23 +411,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const getFeatureLimits = useCallback((): FeatureLimits => {
     switch (subscriptionTier) {
-      case "elite":      return { shift_history_days: -1, dynamic_heatmap_days: -1 };
-      case "pro":        return { shift_history_days: 90, dynamic_heatmap_days: 90 };
-      case "basic":      return { shift_history_days: 30, dynamic_heatmap_days: 30 };
-      default:           return { shift_history_days: 7, dynamic_heatmap_days: 0 };
+      case "elite":  return { shift_history_days: -1, dynamic_heatmap_days: -1 };
+      case "pro":    return { shift_history_days: 90, dynamic_heatmap_days: 90 };
+      case "basic":  return { shift_history_days: 30, dynamic_heatmap_days: 30 };
+      default:       return { shift_history_days: 7, dynamic_heatmap_days: 0 };
     }
   }, [subscriptionTier]);
 
   useEffect(() => {
-    // Reset so downstream consumers (History, TaxReport) wait for the new check.
     setInitialCheckDone(false);
     if (user && session) {
-      // Use cached subscription if fresh (< 2 hrs) — avoids a Stripe round-trip on every login.
-      // Pass forceRefresh=true only when the cache is stale or missing.
       checkSubscription(false);
-      // Safety: even though pages no longer gate on initialCheckDone, some
-      // components (FeatureGate, plan badges) still read it to decide what to
-      // render.  Force-unblock after 2 s so they fall back to defaults.
       const safetyTimer = setTimeout(() => setInitialCheckDone(true), 2000);
       return () => clearTimeout(safetyTimer);
     } else {
@@ -372,7 +445,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         trialExpired,
         trialEnd,
         checkSubscription,
-        createCheckoutSession,
+        purchaseSubscription,
+        restorePurchases,
         openCustomerPortal,
         hasFeature,
         canAccessFeature,

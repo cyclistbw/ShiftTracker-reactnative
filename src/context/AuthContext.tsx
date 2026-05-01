@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import { invalidateShiftsCache } from "@/lib/shifts-cache";
 
+
 // Custom scheme redirect for email confirmation.
 // Registered in app.json via the "scheme" field — OS opens app directly when installed.
 export const AUTH_REDIRECT_URL = "shifttracker://auth/callback";
@@ -47,7 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const supabaseKeys = allKeys.filter(k => k.includes('supabase'));
         if (supabaseKeys.length > 0) await AsyncStorage.multiRemove(supabaseKeys);
       } catch (_) {}
-      await supabase.auth.signOut().catch(() => {});
+      // Do NOT call supabase.auth.signOut() here — it holds an OkHttp connection
+      // slot with an invalid/stale token and fires the SIGNED_OUT event again,
+      // creating a loop. Storage wipe above is sufficient.
     };
 
     const initSession = async () => {
@@ -94,6 +97,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // navigator routes to the ResetPassword screen instead of the app.
       if (event === "PASSWORD_RECOVERY") {
         if (mounted) { setSession(session); setUser(session?.user ?? null); setIsPasswordRecovery(true); setIsLoading(false); }
+        return;
+      }
+      // On fresh login (new JWT), PostgREST/PgBouncer takes 15–20 s server-side
+      // to warm up connection context for the new token.  Pre-warm here — before
+      // calling setUser — so that when data hooks fire they hit a warm server and
+      // complete in 1–2 s instead of hanging indefinitely.
+      // Navigation stays on the loading screen (isLoading=true) during warm-up.
+      if (event === 'SIGNED_IN' && session?.user) {
+        setIsLoading(true);
+        setSession(session);
+        let warmedUp = false;
+        try {
+          await Promise.race([
+            supabase
+              .from('user_profile')
+              .select('user_id')
+              .eq('user_id', session.user.id)
+              .limit(1)
+              .maybeSingle()
+              .then(() => { warmedUp = true; }),
+            new Promise<void>((resolve) => setTimeout(resolve, 22000)),
+          ]);
+        } catch (_) {}
+        if (!warmedUp && mounted) {
+          // Server didn't respond in 22s — all user data is safe in Supabase.
+          // Clear stale local auth/cache state so the next login attempt starts
+          // clean (OkHttp pool reset, fresh JWT). User lands on login screen.
+          await clearStaleSession();
+          setSession(null);
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        if (mounted) { setUser(session.user); setIsLoading(false); }
         return;
       }
       setSession(session);
@@ -276,19 +313,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) return { error, data: null };
 
-      // Store session token in AsyncStorage (replaces localStorage)
+      // Store session token in AsyncStorage — fire-and-forget so a slow/cold
+      // PostgREST connection can't block the login flow.
       if (rememberMe && data?.session) {
-        try {
-          const { data: sessionToken } = await supabase.rpc("create_user_session", {
-            p_user_id: data.user.id,
-            p_remember_me: rememberMe,
-          });
-          if (sessionToken) {
-            await AsyncStorage.setItem("st_session_token", sessionToken);
-          }
-        } catch (sessionErr) {
+        supabase.rpc("create_user_session", {
+          p_user_id: data.user.id,
+          p_remember_me: rememberMe,
+        }).then(({ data: sessionToken }) => {
+          if (sessionToken) AsyncStorage.setItem("st_session_token", sessionToken).catch(() => {});
+        }).catch((sessionErr) => {
           console.warn("Session creation error:", sessionErr);
-        }
+        });
       }
 
       return { error: null, data: data?.session || null };

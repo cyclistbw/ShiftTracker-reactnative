@@ -56,21 +56,41 @@ export const useBusinessSettings = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      loadSettings();
-    } else {
+    if (!user) {
       invalidateBusinessSettingsCache();
       setSettings(defaultSettings);
       setLoading(false);
+      return;
     }
-  }, [user]);
+    // Stagger 300 ms after login so this query doesn't compete with the shifts
+    // queries that fire simultaneously. Android OkHttp allows 5 concurrent
+    // connections per host; too many at once causes all of them to queue
+    // server-side and hang indefinitely.
+    const timer = setTimeout(loadSettings, 300);
+    return () => clearTimeout(timer);
+  }, [user?.id]);
 
   const fetchSettingsForUser = async (userId: string): Promise<BusinessSettings> => {
-    const { data, error } = await supabase
-      .from('user_business_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 24000);
+    let data: any, error: any;
+    try {
+      ({ data, error } = await new Promise<{ data: any; error: any }>((resolve, reject) => {
+        const hardTimer = setTimeout(() => reject(new Error('hard timeout')), 25000);
+        supabase
+          .from('user_business_settings')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle()
+          .abortSignal(controller.signal)
+          .then(
+            (val) => { clearTimeout(hardTimer); resolve(val); },
+            (err) => { clearTimeout(hardTimer); reject(err); }
+          );
+      }));
+    } finally {
+      clearTimeout(abortTimer);
+    }
 
     if (error) {
       console.error("Error loading business settings:", error);
@@ -96,30 +116,29 @@ export const useBusinessSettings = () => {
 
   const loadSettings = async () => {
     if (!user) return;
+
+    // UI-unblock timer: show defaults and clear spinner after 8 s so the
+    // Settings tab doesn't spin forever.  The actual await below stays alive —
+    // when the server warms (~15–20 s) and the real data arrives, setSettings
+    // is called again and overwrites the defaults.
+    const uiTimer = setTimeout(() => {
+      setSettings(prev => prev ?? defaultSettings);
+      setLoading(false);
+    }, 8000);
+
     try {
-      // If another instance is already fetching for the same user, share its
-      // promise instead of firing a duplicate query.
       if (!cachedPromise || cachedUserId !== user.id) {
         cachedUserId = user.id;
         cachedPromise = fetchSettingsForUser(user.id);
       }
-      // Race the cached promise against an 8-second timeout — on Android the
-      // OkHttp connection pool can saturate during login (many concurrent
-      // queries) and individual queries can hang.  Without this, `loading`
-      // stays `true` indefinitely → infinite loading spinner on Settings tab.
-      const result = await Promise.race([
-        cachedPromise,
-        new Promise<BusinessSettings>((resolve) =>
-          setTimeout(() => resolve(defaultSettings), 8000)
-        ),
-      ]);
+      const result = await cachedPromise;
       setSettings(result);
     } catch (error) {
       console.error("Exception loading business settings:", error);
       setSettings(defaultSettings);
-      // Reset cache so next call retries
       invalidateBusinessSettingsCache();
     } finally {
+      clearTimeout(uiTimer);
       setLoading(false);
     }
   };

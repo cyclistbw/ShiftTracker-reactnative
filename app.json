@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shift Tracker",
     "slug": "shift-tracker-native",
-    "version": "1.1.11",
+    "version": "1.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -19,12 +19,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "39",
+      "buildNumber": "42",
       "config": {
         "usesNonExemptEncryption": false
-      },
-      "entitlements": {
-        "com.apple.developer.game-center": true
       },
       "infoPlist": {
         "NSUserNotificationUsageDescription": "Shift Tracker sends reminders about upcoming quarterly tax payment due dates.",
@@ -36,7 +33,7 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 46,
+      "versionCode": 50,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",

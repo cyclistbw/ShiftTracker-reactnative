@@ -27,11 +27,26 @@ export const useUserPreferences = () => {
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPrefsForUser = async (userId: string): Promise<UserPreferences | null> => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 24000);
+    let data: any, error: any;
+    try {
+      ({ data, error } = await new Promise<{ data: any; error: any }>((resolve, reject) => {
+        const hardTimer = setTimeout(() => reject(new Error('hard timeout')), 25000);
+        supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle()
+          .abortSignal(controller.signal)
+          .then(
+            (val) => { clearTimeout(hardTimer); resolve(val); },
+            (err) => { clearTimeout(hardTimer); reject(err); }
+          );
+      }));
+    } finally {
+      clearTimeout(abortTimer);
+    }
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error loading preferences:', error);
@@ -60,10 +75,7 @@ export const useUserPreferences = () => {
     if (!user) { setLoading(false); return; }
 
     if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
-    safetyTimerRef.current = setTimeout(() => {
-      console.warn("useUserPreferences safety timeout — forcing loading=false");
-      setLoading(false);
-    }, 6000);
+    safetyTimerRef.current = setTimeout(() => setLoading(false), 6000);
 
     try {
       if (!prefsCachedPromise || prefsCachedUserId !== user.id) {
@@ -110,11 +122,14 @@ export const useUserPreferences = () => {
       setLoading(false);
       return;
     }
-    loadPreferences();
+    // Stagger 600 ms so this query doesn't fire at the same time as shifts
+    // and businessSettings — see stagger comment in useBusinessSettings.
+    const stagger = setTimeout(loadPreferences, 600);
     return () => {
+      clearTimeout(stagger);
       if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
-  }, [user]);
+  }, [user?.id]);
 
   return {
     preferences,

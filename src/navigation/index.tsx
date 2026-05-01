@@ -280,7 +280,7 @@ export default function RootNavigation() {
         const completed = !result.error && !!result.data?.user_id;
         if (completed) setOnboardingConfirmed(user.id);
         setAppState(completed ? "app" : "onboarding");
-      } catch {
+      } catch (err) {
         // Timeout or network error — assume onboarding complete for existing users
         // so they land in the app rather than being stuck on Login.
         if (!cancelled) setAppState("app");

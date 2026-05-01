@@ -33,13 +33,21 @@ const TaxReportPage = () => {
 
   useEffect(() => {
     if (!user?.id) return;
+    // Delay the WebSocket upgrade handshake by 1 s so it doesn't occupy an
+    // OkHttp connection slot at the same moment the initial data queries fire.
     const refresh = () => { invalidateShiftsCache(); loadAllShiftData(); };
-    const channel = supabase
-      .channel("tax-report-shifts-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "shift_summaries", filter: `user_id=eq.${user.id}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "shift_summaries_import", filter: `user_id=eq.${user.id}` }, refresh)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const subTimer = setTimeout(() => {
+      channel = supabase
+        .channel("tax-report-shifts-changes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "shift_summaries", filter: `user_id=eq.${user.id}` }, refresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "shift_summaries_import", filter: `user_id=eq.${user.id}` }, refresh)
+        .subscribe();
+    }, 1000);
+    return () => {
+      clearTimeout(subTimer);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const loadAllShiftData = async () => {
