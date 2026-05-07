@@ -236,17 +236,16 @@ const VehiclesSettings = () => {
               [...vehicles].sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0)).map(vehicle => (
                 <Card key={vehicle.id} className="overflow-hidden" style={vehicle.isDefault ? { borderColor: '#84cc16', borderWidth: 2 } : undefined}>
                   <CardContent className="p-4">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center space-x-3 flex-1">
-                        {/* 🚩 FLAG: inline SVG → lucide-react-native Car icon */}
-                        <View className="p-2">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-row items-start flex-1" style={{ gap: 10 }}>
+                        <View style={{ paddingTop: 2 }}>
                           <Car size={20} color={vehicle.isDefault ? "#84cc16" : "#6b7280"} />
                         </View>
                         <View className="flex-1">
-                          <View className="flex-row items-center">
+                          <View className="flex-row items-center flex-wrap" style={{ gap: 6, marginBottom: 2 }}>
                             <Text className="font-medium text-foreground">{vehicle.name}</Text>
                             {vehicle.isDefault && (
-                              <View className="ml-2 bg-lime-500 rounded px-2 py-0.5">
+                              <View className="bg-lime-500 rounded px-2 py-0.5">
                                 <Text className="text-xs text-white font-medium">Default</Text>
                               </View>
                             )}
@@ -263,34 +262,21 @@ const VehiclesSettings = () => {
                           <Text className="text-xs text-muted-foreground">
                             {`End of ${currentYear}: ${vehicle.endYearMileage != null ? vehicle.endYearMileage.toLocaleString() + ' miles' : '—'}`}
                           </Text>
+                          {!vehicle.isDefault && vehicle.id && (
+                            <View style={{ marginTop: 10 }}>
+                              <Button variant="outline" size="sm" onPress={() => handleSetDefault(vehicle.id!)}>
+                                Set Default
+                              </Button>
+                            </View>
+                          )}
                         </View>
                       </View>
 
-                      <View className="flex-row items-center space-x-2">
-                        {!vehicle.isDefault && vehicle.id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onPress={() => handleSetDefault(vehicle.id!)}
-                          >
-                            Set Default
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onPress={() => handleEditVehicle(vehicle)}
-                        >
+                      <View className="flex-row items-center" style={{ gap: 4 }}>
+                        <Button variant="ghost" size="icon" onPress={() => handleEditVehicle(vehicle)}>
                           <Pencil size={16} color="#374151" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onPress={() => {
-                            setEditingVehicle(vehicle);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
+                        <Button variant="ghost" size="icon" onPress={() => { setEditingVehicle(vehicle); setIsDeleteDialogOpen(true); }}>
                           <Trash2 size={16} color="#ef4444" />
                         </Button>
                       </View>
