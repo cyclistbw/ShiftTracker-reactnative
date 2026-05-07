@@ -1,9 +1,14 @@
 // 🚩 FLAG: <div> → <View>; CSS animate-pulse-light → Animated pulse loop
 // 🚩 FLAG: useIsMobile always returns true in RN — removed, using fixed mobile sizes
-import { View, Text, Pressable, Animated } from "react-native";
+import { View, Text, Pressable, Animated, Platform } from "react-native";
 import { Play, Square, Pause } from "lucide-react-native";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
+
+const isWeb = Platform.OS === "web";
+const BTN_SIZE = isWeb ? 112 : 160;
+const RING_SIZE = isWeb ? 132 : 176;
+const ICON_SIZE = isWeb ? 36 : 48;
 
 interface ShiftButtonProps {
   isActive: boolean;
@@ -63,38 +68,35 @@ const ShiftButton = ({
       {/* Pulsing ring behind button */}
       {isActive && !isPaused && (
         <Animated.View
-          style={{ transform: [{ scale: pulseAnim }] }}
-          className="absolute w-44 h-44 rounded-full bg-red-300 opacity-40"
+          style={{ transform: [{ scale: pulseAnim }], position: "absolute", width: RING_SIZE, height: RING_SIZE, borderRadius: RING_SIZE / 2, backgroundColor: "#fca5a5", opacity: 0.4 }}
         />
       )}
       <Pressable
         onPress={handlePress}
-        className={cn(
-          "w-40 h-40 rounded-full shadow-lg items-center justify-center",
-          bgColor
-        )}
+        style={{ width: BTN_SIZE, height: BTN_SIZE, borderRadius: BTN_SIZE / 2 }}
+        className={cn("shadow-lg items-center justify-center", bgColor)}
       >
         <View className="items-center">
           {isActive ? (
             isPaused ? (
               <>
-                <Play size={48} color="#ffffff" />
+                <Play size={ICON_SIZE} color="#ffffff" />
                 <Text className="text-white font-semibold text-base mt-2">Resume</Text>
               </>
             ) : isMileageOnly ? (
               <>
-                <Square size={48} color="#ffffff" />
+                <Square size={ICON_SIZE} color="#ffffff" />
                 <Text className="text-white font-semibold text-base mt-2">End Tracking</Text>
               </>
             ) : (
               <>
-                <Pause size={48} color="#ffffff" />
+                <Pause size={ICON_SIZE} color="#ffffff" />
                 <Text className="text-white font-semibold text-base mt-2">Pause</Text>
               </>
             )
           ) : (
             <>
-              <Play size={48} color="#ffffff" />
+              <Play size={ICON_SIZE} color="#ffffff" />
               <Text className="text-white font-semibold text-base mt-2">Start Shift</Text>
             </>
           )}
