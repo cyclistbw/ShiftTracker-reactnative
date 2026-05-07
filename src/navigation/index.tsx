@@ -23,7 +23,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Home, Clock, FileBarChart, Settings as SettingsIcon } from "lucide-react-native";
+import { Home, Clock, FileBarChart, Settings as SettingsIcon, X } from "lucide-react-native";
+import { TouchableOpacity } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme, THEME_COLORS } from "@/context/ThemeContext";
 
@@ -70,6 +71,7 @@ import AnalyticsScreen from "@/pages/Analytics";
 import MobileSubscriptionScreen from "@/pages/MobileSubscription";
 import MobilePrivacyScreen from "@/pages/MobilePrivacy";
 import MobileTermsScreen from "@/pages/MobileTerms";
+import PurchaseSuccessScreen from "@/pages/PurchaseSuccess";
 import ResetPasswordScreen from "@/pages/ResetPassword";
 
 export type AuthStackParamList = {
@@ -97,6 +99,7 @@ export type AppStackParamList = {
   MobileSubscription: undefined;
   MobilePrivacy: undefined;
   MobileTerms: undefined;
+  PurchaseSuccess: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -159,7 +162,16 @@ function AppNavigator() {
       <AppStack.Screen
         name="MobileSubscription"
         component={MobileSubscriptionScreen}
-        options={{ presentation: "modal", headerShown: true, title: "Subscription" }}
+        options={({ navigation }) => ({
+          presentation: "modal",
+          headerShown: true,
+          title: "Manage Subscription",
+          headerRight: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 4 }}>
+              <X size={20} color="#6b7280" />
+            </TouchableOpacity>
+          ),
+        })}
       />
       <AppStack.Screen
         name="MobilePrivacy"
@@ -170,6 +182,11 @@ function AppNavigator() {
         name="MobileTerms"
         component={MobileTermsScreen}
         options={{ presentation: "modal", headerShown: false, title: "Terms of Service" }}
+      />
+      <AppStack.Screen
+        name="PurchaseSuccess"
+        component={PurchaseSuccessScreen}
+        options={{ headerShown: false }}
       />
     </AppStack.Navigator>
     </>
@@ -197,6 +214,13 @@ function AuthNavigator({ introSeen }: { introSeen: boolean }) {
 }
 
 type AppState = "loading" | "unauthenticated" | "onboarding" | "app" | "password_recovery";
+
+// Inject global CSS on web to hide scrollbars across all ScrollView containers
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  const style = document.createElement("style");
+  style.textContent = `* { scrollbar-width: none !important; } *::-webkit-scrollbar { display: none !important; }`;
+  document.head.appendChild(style);
+}
 
 export default function RootNavigation() {
   const { user, isLoading, isPasswordRecovery } = useAuth();

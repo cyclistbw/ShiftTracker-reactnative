@@ -1,7 +1,7 @@
 // 🚩 FLAG: Layout wrapper removed (navigator provides tabs/header in native)
 // 🚩 FLAG: animate-pulse Loading -> ActivityIndicator
 // 🚩 FLAG: <div> -> <View>
-import { View, ScrollView, ActivityIndicator } from "react-native";
+import { View, ScrollView, ActivityIndicator, Platform } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import ShiftHistory from "@/components/ShiftHistory";
@@ -26,7 +26,7 @@ const History = () => {
 
   return (
     <View className="flex-1 bg-background">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 48 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingTop: 16, paddingHorizontal: 16, paddingBottom: 48, ...(Platform.OS === "web" && { maxWidth: 768, width: "100%", alignSelf: "center" as const }) }}>
         <HistoryHeader userEmail={user?.email} />
         <HistoryAlerts error={error} duplicateWarning={duplicateWarning} onRetry={loadShifts} />
         <TimePeriodSelector

@@ -9,7 +9,7 @@
 import { LinkingOptions } from "@react-navigation/native";
 
 export const linking: LinkingOptions<any> = {
-  prefixes: ["shifttracker://"],
+  prefixes: ["shifttracker://", "https://shifttracker.app", "http://localhost:3010", "http://localhost:8081"],
   config: {
     screens: {
       // AuthNavigator screens
@@ -32,6 +32,7 @@ export const linking: LinkingOptions<any> = {
       MobileSubscription: "mobile-subscription",
       MobilePrivacy: "privacy",
       MobileTerms: "terms",
+      PurchaseSuccess: "success",
     },
   },
 };

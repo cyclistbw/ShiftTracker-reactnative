@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { View, Text, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, TouchableOpacity, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -60,9 +60,17 @@ const Onboarding = () => {
   };
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <View
       className="flex-1"
-      style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + 12, paddingBottom: insets.bottom + 16, paddingHorizontal: 28 }}
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+        paddingTop: insets.top + 12,
+        paddingBottom: insets.bottom + 16,
+        paddingHorizontal: 28,
+        ...(Platform.OS === "web" && { maxWidth: 520, alignSelf: "center" as const, width: "100%" }),
+      }}
     >
       {/* Header row: logo + skip */}
       <View className="flex-row items-center justify-between mb-2">
@@ -158,6 +166,7 @@ const Onboarding = () => {
           </Pressable>
         </View>
       </View>
+    </View>
     </View>
   );
 };

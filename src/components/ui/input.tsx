@@ -1,15 +1,17 @@
 import * as React from "react";
 import { TextInput, TextInputProps, View, Platform } from "react-native";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 export interface InputProps extends TextInputProps {
   className?: string;
+  autofillColor?: string;
 }
 
-const AUTOFILL_BG = "#f7fee7";
-
 export const Input = React.forwardRef<TextInput, InputProps>(
-  ({ className, placeholderTextColor, style, onChangeText, ...props }, ref) => {
+  ({ className, placeholderTextColor, style, onChangeText, autofillColor, ...props }, ref) => {
+    const { isDark } = useTheme();
+    const autofillBg = autofillColor ?? (isDark ? "#1e293b" : "#f9fafb");
     const [bgKey, setBgKey] = React.useState(0);
     const prevLenRef = React.useRef(0);
 
@@ -29,7 +31,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
     );
 
     return (
-      <View style={{ borderRadius: 6, overflow: "hidden", backgroundColor: AUTOFILL_BG }}>
+      <View style={{ borderRadius: 6, overflow: "hidden", backgroundColor: autofillBg }}>
         <TextInput
           key={bgKey}
           ref={ref}
@@ -39,7 +41,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
             props.editable === false && "opacity-50",
             className
           )}
-          style={[{ backgroundColor: AUTOFILL_BG }, style]}
+          style={[{ backgroundColor: autofillBg }, style]}
           placeholderTextColor={placeholderTextColor ?? "#9ca3af"}
           onChangeText={handleChangeText}
           {...props}

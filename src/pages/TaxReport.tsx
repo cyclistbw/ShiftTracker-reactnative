@@ -2,7 +2,7 @@
 // 🚩 FLAG: animate-spin -> ActivityIndicator
 // 🚩 FLAG: <div>/<h2>/<h3>/<p> -> <View>/<Text>
 import { useState, useEffect, useRef } from "react";
-import { View, Text, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, Platform } from "react-native";
 import TaxReport from "@/components/TaxReport";
 import { supabase } from "@/lib/supabase";
 import { Shift } from "@/types/shift";
@@ -127,7 +127,7 @@ const TaxReportPage = () => {
 
   return (
     <View className="flex-1 bg-background">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 48 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 48, ...(Platform.OS === "web" && { maxWidth: 768, width: "100%", alignSelf: "center" as const }) }}>
         <Text className="text-2xl font-bold text-foreground mb-6">Tax Report</Text>
         <FeatureGate
           feature="tax_tools"

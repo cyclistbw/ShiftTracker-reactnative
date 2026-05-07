@@ -2,8 +2,10 @@
 // 🚩 FLAG: <div>/<span>/<ul>/<li> → <View>/<Text>
 // 🚩 FLAG: onClick → onPress
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSubscription } from '@/context/SubscriptionContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +63,11 @@ const MobileSubscriptionFlow = () => {
     setLastChecked(new Date());
   };
 
+  const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const isElite = subscriptionTier === 'elite';
+  const inactiveToggleText = isDark ? '#e5e7eb' : '#374151';
+  const toggleBg = isDark ? '#1f2937' : '#f3f4f6';
 
   return (
     <ScrollView className="flex-1">
@@ -131,7 +137,7 @@ const MobileSubscriptionFlow = () => {
               );
             })}
             <Button variant="outline" disabled={true} className="w-full mt-2">
-              <Text>Current Free Plan</Text>
+              <Text className="text-foreground">Current Free Plan</Text>
             </Button>
           </CardContent>
         </Card>
@@ -146,23 +152,20 @@ const MobileSubscriptionFlow = () => {
 
           <CardHeader style={{ alignItems: 'center', paddingBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Crown size={20} color="#374151" />
+              <Crown size={20} color="#65a30d" />
               <CardTitle>ShiftTracker Elite</CardTitle>
             </View>
-            <CardDescription className="text-xs text-center mt-1">
-              For serious earners — every tool, no limits
-            </CardDescription>
           </CardHeader>
 
           <CardContent style={{ gap: 16 }}>
             {/* Billing toggle */}
-            <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 4, gap: 4 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: toggleBg, borderRadius: 8, padding: 4, gap: 4 }}>
               <Button
                 variant={selectedBilling === 'monthly' ? 'default' : 'ghost'}
                 style={{ flex: 1 }}
                 onPress={() => setSelectedBilling('monthly')}
               >
-                <Text style={{ color: selectedBilling === 'monthly' ? '#fff' : '#374151', fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: selectedBilling === 'monthly' ? '#fff' : inactiveToggleText, fontSize: 13, fontWeight: '600' }}>
                   Monthly
                 </Text>
               </Button>
@@ -172,7 +175,7 @@ const MobileSubscriptionFlow = () => {
                 onPress={() => setSelectedBilling('annual')}
               >
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ color: selectedBilling === 'annual' ? '#fff' : '#374151', fontSize: 13, fontWeight: '600' }}>
+                  <Text style={{ color: selectedBilling === 'annual' ? '#fff' : inactiveToggleText, fontSize: 13, fontWeight: '600' }}>
                     Annual
                   </Text>
                   <Text style={{ color: selectedBilling === 'annual' ? '#d9f99d' : '#65a30d', fontSize: 10 }}>
@@ -183,7 +186,7 @@ const MobileSubscriptionFlow = () => {
             </View>
 
             {/* Price display */}
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ alignItems: 'center', marginTop: 20, marginBottom: 8 }}>
               {selectedBilling === 'monthly' ? (
                 <>
                   <Text className="text-3xl font-bold text-foreground">$12.99</Text>
@@ -198,7 +201,7 @@ const MobileSubscriptionFlow = () => {
             </View>
 
             {/* Features */}
-            <View style={{ gap: 8, marginBottom: 20 }}>
+            <View style={{ gap: 8, marginTop: 16, marginBottom: 20 }}>
               {ELITE_FEATURES.map((f, i) => {
                 const Icon = f.icon;
                 return (
@@ -231,11 +234,11 @@ const MobileSubscriptionFlow = () => {
               </Button>
             )}
 
-            <Text className="text-xs text-muted-foreground text-center">
+            <Text className="text-xs text-muted-foreground text-center" style={{ marginTop: 8 }}>
               7-day free trial · Cancel anytime
             </Text>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 20 }}>
               <TouchableOpacity onPress={() => Linking.openURL('https://shifttrackerapp.com/privacy-policy')}>
                 <Text style={{ color: '#6b7280', fontSize: 11, textDecorationLine: 'underline' }}>Privacy Policy</Text>
               </TouchableOpacity>
@@ -246,25 +249,18 @@ const MobileSubscriptionFlow = () => {
           </CardContent>
         </Card>
 
-        {/* Restore Purchases */}
-        {!isElite && (
+        {/* Restore Purchases — required by Apple guideline 3.1.1 */}
+        {!isElite && Platform.OS === 'ios' && (
           <Button variant="ghost" onPress={restorePurchases} disabled={isLoading}>
-            <Text style={{ color: '#6b7280', fontSize: 13 }}>Restore Purchases</Text>
+            <Text style={{ color: '#9ca3af', fontSize: 12 }}>Restore Purchases</Text>
           </Button>
         )}
 
-        {/* Notice */}
-        <Card style={{ backgroundColor: '#f9fafb' }}>
-          <CardContent style={{ paddingTop: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-              <AlertCircle size={18} color="#6b7280" />
-              <Text className="text-xs text-muted-foreground flex-1">
-                Subscriptions are managed through Apple or Google. Payment will be charged to your
-                account at confirmation. Cancel anytime in your device's subscription settings.
-              </Text>
-            </View>
-          </CardContent>
-        </Card>
+        <Text style={{ color: '#9ca3af', fontSize: 11, textAlign: 'center', paddingHorizontal: 24, paddingBottom: insets.bottom + 12 }}>
+          {Platform.OS === 'ios'
+            ? 'Subscriptions are managed through Apple. Payment will be charged to your account at confirmation. Cancel anytime in your device’s subscription settings.'
+            : 'Subscriptions are managed through Google. Payment will be charged to your account at confirmation. Cancel anytime in your device’s subscription settings.'}
+        </Text>
       </View>
     </ScrollView>
   );

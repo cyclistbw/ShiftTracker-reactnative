@@ -2,8 +2,8 @@
 // FLAG: lucide-react -> lucide-react-native; form onSubmit -> onPress; e.target.value -> onChangeText
 // FLAG: type=email -> keyboardType=email-address; type=password -> secureTextEntry
 // FLAG: button/Link -> Pressable/navigation.navigate; animate-spin -> ActivityIndicator; Checkbox -> Switch
-import { useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { useState, useRef } from "react";
+import { View, Text, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, TextInput } from "react-native";
 import AppLogo from "@/components/AppLogo";
 import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "@/context/ThemeContext";
@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState("");
@@ -103,12 +104,12 @@ export default function LoginScreen() {
 
                   <View style={{ gap: 6 }}>
                     <Label>Email</Label>
-                    <Input keyboardType="email-address" autoCapitalize="none" placeholder="Enter your email" value={email} onChangeText={setEmail} editable={!loading} />
+                    <Input keyboardType="email-address" autoCapitalize="none" placeholder="Enter your email" value={email} onChangeText={setEmail} editable={!loading} returnKeyType="next" onSubmitEditing={() => passwordRef.current?.focus()} blurOnSubmit={false} autofillColor="#f7fee7" />
                   </View>
                   <View style={{ gap: 6 }}>
                     <Label>Password</Label>
                     <View className="relative">
-                      <Input secureTextEntry={!showPassword} placeholder="Enter your password" value={password} onChangeText={setPassword} editable={!loading} />
+                      <Input ref={passwordRef} secureTextEntry={!showPassword} placeholder="Enter your password" value={password} onChangeText={setPassword} editable={!loading} returnKeyType="go" onSubmitEditing={handleSubmit} autofillColor="#f7fee7" />
                       <Pressable onPress={() => setShowPassword(!showPassword)} className="absolute right-3 top-0 bottom-0 justify-center">
                         {showPassword ? <EyeOff size={16} color="#6b7280" /> : <Eye size={16} color="#6b7280" />}
                       </Pressable>

@@ -10,6 +10,7 @@
 // 🚩 FLAG: <div hidden> -> style={{ display: "none" }} -> not needed; LocationTracker kept
 // 🚩 FLAG: fixed inset-0 -> flex-1; bottom-20 datetime -> SafeAreaView positioning
 import { useState, useEffect } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import {
   View, Text, Modal, ScrollView, Pressable,
   KeyboardAvoidingView, Platform, TextInput, ActivityIndicator,
@@ -36,6 +37,7 @@ import { useActivityTracker } from "@/hooks/useActivityTracker";
 
 const Index = () => {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const { settings: businessSettings, loading: businessSettingsLoading, saveSettings } = useBusinessSettings();
   const { canAccessFeature } = useSubscription();
   const { trackEvent } = useActivityTracker();
@@ -227,7 +229,7 @@ const Index = () => {
 
   return (
     <View className="flex-1 bg-background">
-      <FloatingFeedbackButton />
+      {isFocused && <FloatingFeedbackButton />}
       <Modal visible={startShiftDialogOpen} transparent animationType="slide" onRequestClose={() => setStartShiftDialogOpen(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
           <Pressable style={{ flex: 1 }} onPress={() => setStartShiftDialogOpen(false)} />

@@ -5,7 +5,7 @@
 // 🚩 FLAG: ChartContainer/ChartTooltip/ChartTooltipContent → removed (charts not rendered)
 // 🚩 FLAG: <div>/<span> → <View>/<Text>; grid → flex-row flex-wrap
 import { useState, useMemo } from "react";
-import { View, Text, Pressable, ScrollView, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, ScrollView, useWindowDimensions, Platform } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { Shift } from "@/types/shift";
 import {
@@ -271,12 +271,24 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
   );
 
   const { width } = useWindowDimensions();
-  // chartContainerWidth is measured via onLayout for accuracy.
-  // gifted-charts renders the y-axis OUTSIDE its width prop, so we subtract
-  // yAxisLabelWidth (50) from the container width to prevent overflow.
   const [chartContainerWidth, setChartContainerWidth] = useState(0);
   const Y_AXIS_WIDTH = 50;
-  const barChartWidth = (chartContainerWidth > 0 ? chartContainerWidth : width - 80) - Y_AXIS_WIDTH;
+  // On web, cap effective width to the 768px content column (minus card padding ~32px each side)
+  const effectiveWidth = Platform.OS === "web" ? Math.min(width, 768) : width;
+  const barChartWidth = (chartContainerWidth > 0 ? chartContainerWidth : effectiveWidth - 80) - Y_AXIS_WIDTH;
+
+  // Quarterly: 8 bars (2 per quarter), intra-pair spacing=4, inter-pair spacing=18
+  // Fill formula: 8*bw + 3*4 + 3*18 = barChartWidth  → bw = (barChartWidth - 66) / 8
+  const quarterlyBarWidth = Math.max(20, Math.floor((barChartWidth - 66) / 8));
+  const quarterlyInterSpacing = Math.max(8, Math.floor((barChartWidth - 8 * quarterlyBarWidth - 3 * 4) / 3));
+
+  // Monthly: 12 bars, spacing between bars.
+  // On web fill the full width; on native use fixed size with horizontal scroll.
+  const isWeb = Platform.OS === "web";
+  const MONTHLY_SPACING = isWeb ? 6 : 14;
+  const monthlyBarWidth = isWeb
+    ? Math.max(14, Math.floor((barChartWidth - 11 * MONTHLY_SPACING) / 12))
+    : 22;
 
   if (shifts.length === 0) {
     return (
@@ -462,10 +474,10 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
                   <BarChart
                     data={quarterlyData.flatMap((q) => [
                       { value: Math.max(0, Math.round(q.summary.totalIncome)), label: `Q${q.quarter}`, frontColor: "#4ade80", spacing: 4, labelTextStyle: { color: chartLabelColor, fontSize: 10 } },
-                      { value: Math.max(0, Math.round(q.summary.netIncome)), frontColor: "#60a5fa", spacing: 18 },
+                      { value: Math.max(0, Math.round(q.summary.netIncome)), frontColor: "#60a5fa", spacing: quarterlyInterSpacing },
                     ])}
                     width={barChartWidth}
-                    barWidth={26}
+                    barWidth={quarterlyBarWidth}
                     noOfSections={4}
                     roundedTop
                     isAnimated
@@ -645,29 +657,56 @@ const TaxReport = ({ shifts }: TaxReportProps) => {
             <CardContent>
               {monthlyData.length > 0 && (
                 <View className="mb-4" onLayout={(e) => setChartContainerWidth(e.nativeEvent.layout.width)}>
-                  <BarChart
-                    data={monthlyData.map((m) => ({
-                      value: Math.max(0, Math.round(m.summary.totalIncome)),
-                      label: MONTH_NAMES[m.month],
-                      frontColor: "#4ade80",
-                      labelTextStyle: { color: chartLabelColor, fontSize: 9 },
-                    }))}
-                    width={barChartWidth}
-                    barWidth={22}
-                    spacing={14}
-                    noOfSections={4}
-                    roundedTop
-                    isAnimated
-                    yAxisLabelPrefix="$"
-                    yAxisLabelWidth={Y_AXIS_WIDTH}
-                    yAxisTextStyle={{ color: chartLabelColor, fontSize: 10 }}
-                    yAxisColor="transparent"
-                    xAxisColor={chartAxisColor}
-                    rulesColor={chartRulesColor}
-                  />
-                  <Text style={{ color: chartLabelColor }} className="text-xs text-center mt-1">
-                    ← swipe chart to see all months →
-                  </Text>
+                  {isWeb ? (
+                    <BarChart
+                      data={monthlyData.map((m) => ({
+                        value: Math.max(0, Math.round(m.summary.totalIncome)),
+                        label: MONTH_NAMES[m.month],
+                        frontColor: "#4ade80",
+                        labelTextStyle: { color: chartLabelColor, fontSize: 9 },
+                      }))}
+                      width={barChartWidth}
+                      barWidth={monthlyBarWidth}
+                      spacing={MONTHLY_SPACING}
+                      noOfSections={4}
+                      roundedTop
+                      isAnimated
+                      yAxisLabelPrefix="$"
+                      yAxisLabelWidth={Y_AXIS_WIDTH}
+                      yAxisTextStyle={{ color: chartLabelColor, fontSize: 10 }}
+                      yAxisColor="transparent"
+                      xAxisColor={chartAxisColor}
+                      rulesColor={chartRulesColor}
+                    />
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <BarChart
+                        data={monthlyData.map((m) => ({
+                          value: Math.max(0, Math.round(m.summary.totalIncome)),
+                          label: MONTH_NAMES[m.month],
+                          frontColor: "#4ade80",
+                          labelTextStyle: { color: chartLabelColor, fontSize: 9 },
+                        }))}
+                        width={barChartWidth}
+                        barWidth={monthlyBarWidth}
+                        spacing={MONTHLY_SPACING}
+                        noOfSections={4}
+                        roundedTop
+                        isAnimated
+                        yAxisLabelPrefix="$"
+                        yAxisLabelWidth={Y_AXIS_WIDTH}
+                        yAxisTextStyle={{ color: chartLabelColor, fontSize: 10 }}
+                        yAxisColor="transparent"
+                        xAxisColor={chartAxisColor}
+                        rulesColor={chartRulesColor}
+                      />
+                    </ScrollView>
+                  )}
+                  {!isWeb && (
+                    <Text style={{ color: chartLabelColor }} className="text-xs text-center mt-1">
+                      ← swipe chart to see all months →
+                    </Text>
+                  )}
                 </View>
               )}
               <View className="flex-row flex-wrap gap-3">

@@ -25,9 +25,11 @@ const AverageStatisticsCard = ({ summary, shifts }: AverageStatisticsCardProps) 
   };
 
   const completedShifts = shifts.filter((s) => s.endTime !== null);
-  const avgDuration = completedShifts.length > 0 ? summary.totalHours / completedShifts.length : 0;
-  const avgMileage = completedShifts.length > 0 ? summary.totalMileage / completedShifts.length : 0;
-  const avgIncome = completedShifts.length > 0 ? summary.totalIncome / completedShifts.length : 0;
+  const uniqueWorkDays = new Set(completedShifts.map((s) => new Date(s.startTime).toDateString()));
+  const numDays = uniqueWorkDays.size;
+  const avgDuration = numDays > 0 ? summary.totalHours / numDays : 0;
+  const avgMileage = numDays > 0 ? summary.totalMileage / numDays : 0;
+  const avgIncome = numDays > 0 ? summary.totalIncome / numDays : 0;
 
   const shiftsWithMileage = completedShifts.filter((s) => (s.mileageEnd || 0) - (s.mileageStart || 0) > 0);
   const totalIncomeWithMileage = shiftsWithMileage.reduce((sum, s) => sum + (s.income || 0), 0);
@@ -56,9 +58,9 @@ const AverageStatisticsCard = ({ summary, shifts }: AverageStatisticsCardProps) 
       </CardHeader>
       <CardContent>
         <View className="flex-row flex-wrap gap-4">
-          <StatBox label="Duration (avg)" value={formatDuration(avgDuration)} />
-          <StatBox label="Mileage (avg)" value={`${avgMileage.toFixed(2)} mi`} />
-          <StatBox label="Income (avg)" value={formatCurrency(avgIncome)} />
+          <StatBox label="Duration/Day" value={formatDuration(avgDuration)} />
+          <StatBox label="Mileage/Day" value={`${avgMileage.toFixed(2)} mi`} />
+          <StatBox label="Income/Day" value={formatCurrency(avgIncome)} />
           <StatBox label="Hourly Rate" value={`${formatCurrency(summary.hourlyAverage)}/hr`} />
           {avgIncomePerMile > 0 && (
             <StatBox label="Income/Mile" value={`$${avgIncomePerMile.toFixed(2)}/mi`} />

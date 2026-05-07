@@ -214,9 +214,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           try {
             const data = JSON.parse(cached);
             const age = Date.now() - new Date(data.lastVerified || 0).getTime();
-            if (age < 2 * 60 * 60 * 1000 && data.userId === user.id) {
-              setSubscribed(data.subscribed || false);
-              setSubscriptionTier(data.tier || "free");
+            // Only short-circuit on a positive (subscribed) cache hit.
+            // If cache says "free", fall through to RC + Supabase so that a
+            // purchase made on another platform is picked up immediately.
+            if (age < 2 * 60 * 60 * 1000 && data.userId === user.id && data.subscribed) {
+              setSubscribed(true);
+              setSubscriptionTier(data.tier || "elite");
               setSubscriptionEnd(data.end || null);
               setInitialCheckDone(true);
               return;
@@ -226,6 +229,26 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
 
       if (!rcConfigured.current) {
+        // RC not available (web or SDK not yet initialised) — fall back to
+        // the Supabase subscribers table which RC syncs to after every purchase.
+        try {
+          const { data } = await supabase
+            .from("subscribers")
+            .select("subscribed, subscription_tier, subscription_end")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (data) {
+            const isSubscribed = data.subscribed ?? false;
+            const tier: SubscriptionTier = (data.subscription_tier as SubscriptionTier) ?? "free";
+            const subEnd: string | null = data.subscription_end ?? null;
+            setSubscribed(isSubscribed);
+            setSubscriptionTier(tier);
+            setSubscriptionEnd(subEnd);
+            await cacheSubscriptionData({ subscribed: isSubscribed, tier, end: subEnd });
+          }
+        } catch (err) {
+          console.warn("[Sub] Supabase fallback failed:", err);
+        }
         setInitialCheckDone(true);
         return;
       }
@@ -234,9 +257,29 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       try {
         const customerInfo = await Purchases.getCustomerInfo();
         const activeEntitlement = customerInfo.entitlements.active[RC_ENTITLEMENT];
-        const isSubscribed = activeEntitlement !== undefined;
-        const tier: SubscriptionTier = isSubscribed ? "elite" : "free";
-        const subEnd = activeEntitlement?.expirationDate ?? null;
+        let isSubscribed = activeEntitlement !== undefined;
+        let tier: SubscriptionTier = isSubscribed ? "elite" : "free";
+        let subEnd: string | null = activeEntitlement?.expirationDate ?? null;
+
+        // Cross-platform fallback: if RC shows free, check Supabase in case the
+        // subscription was purchased on a different platform (e.g. Android→iOS)
+        // and the entitlement hasn't propagated to this platform's RC yet.
+        if (!isSubscribed) {
+          try {
+            const { data } = await supabase
+              .from("subscribers")
+              .select("subscribed, subscription_tier, subscription_end")
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (data?.subscribed) {
+              isSubscribed = true;
+              tier = (data.subscription_tier as SubscriptionTier) ?? "elite";
+              subEnd = data.subscription_end ?? null;
+            }
+          } catch (err) {
+            console.warn("[RC] Supabase cross-platform check failed:", err);
+          }
+        }
 
         setSubscribed(isSubscribed);
         setSubscriptionTier(tier);

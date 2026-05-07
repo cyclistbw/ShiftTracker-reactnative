@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, useWindowDimensions, Platform } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react-native";
@@ -55,7 +55,8 @@ const CumulativeHourlyChart: React.FC<CumulativeHourlyChartProps> = ({ selectedY
   const [dataAreaWidth, setDataAreaWidth] = useState(0);
 
   const Y_AXIS_WIDTH = 36;
-  const chartWidth = screenWidth - 48 - Y_AXIS_WIDTH;
+  const effectiveWidth = Platform.OS === "web" ? Math.min(screenWidth, 768) : screenWidth;
+  const chartWidth = effectiveWidth - 48 - Y_AXIS_WIDTH;
 
   const labelColor    = isDark ? "#9ca3af" : "#6b7280";
   const axisColor     = isDark ? "#374151" : "#e5e7eb";

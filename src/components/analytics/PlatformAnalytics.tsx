@@ -1,7 +1,7 @@
 // 🚩 FLAG: <table>/<tr>/<td> → <View>/<Text> rows; animate-spin → ActivityIndicator
 // 🚩 FLAG: lucide-react → lucide-react-native; overflow-x-auto → ScrollView horizontal
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, Platform } from "react-native";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -152,9 +152,69 @@ const PlatformAnalytics: React.FC<PlatformAnalyticsProps> = ({ selectedYear, ref
     );
   }
 
-  // 🚩 FLAG: HTML table → View-based rows with ScrollView for horizontal overflow
+  // On web use flex ratios to fill the full card width; on native use fixed px widths with horizontal scroll
+  const isWeb = Platform.OS === "web";
   const COL_WIDTHS = [100, 50, 70, 50, 50, 60, 60];
+  const COL_FLEX   = [2.5, 0.8, 1.4, 0.9, 0.9, 1.1, 1.1];
   const HEADERS = ["Platform", "Shifts", "Earnings", "Hours", "Miles", "$/hr", "$/mi"];
+
+  const colStyle = (i: number) =>
+    isWeb ? { flex: COL_FLEX[i] } : { width: COL_WIDTHS[i] };
+
+  const TableContent = (
+    <View style={isWeb ? { width: "100%" } : undefined}>
+      {/* Header row */}
+      <View className="flex-row border-b border-border pb-2">
+        {HEADERS.map((header, i) => (
+          <View key={header} style={colStyle(i)}>
+            <Text className={`text-xs font-medium text-muted-foreground ${i > 0 ? "text-right" : ""}`}>
+              {header}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Data rows */}
+      {platforms.map((p, i) => {
+        const isBest = i === 0 && platforms.length > 1;
+        const isWorst = i === platforms.length - 1 && platforms.length > 1;
+        return (
+          <View
+            key={p.platform}
+            className={`flex-row py-2 border-b border-border/50 items-center ${
+              isBest ? "bg-green-500/10" : isWorst ? "bg-orange-500/10" : ""
+            }`}
+          >
+            <View style={colStyle(0)} className="flex-row items-center gap-1">
+              <Text className="font-medium text-sm text-foreground" numberOfLines={1}>
+                {p.platform}
+              </Text>
+              {isBest && <Badge variant="default" className="bg-green-600 px-1">Best</Badge>}
+              {isWorst && <Badge variant="secondary" className="bg-orange-500 px-1">Low</Badge>}
+            </View>
+            <View style={colStyle(1)}>
+              <Text className="text-sm text-foreground text-right">{p.totalShifts}</Text>
+            </View>
+            <View style={colStyle(2)}>
+              <Text className="text-sm text-foreground text-right">{fmt(p.totalEarnings)}</Text>
+            </View>
+            <View style={colStyle(3)}>
+              <Text className="text-sm text-foreground text-right">{fmtNum(p.totalHours)}</Text>
+            </View>
+            <View style={colStyle(4)}>
+              <Text className="text-sm text-foreground text-right">{fmtNum(p.totalMiles, 0)}</Text>
+            </View>
+            <View style={colStyle(5)}>
+              <Text className="text-sm font-semibold text-foreground text-right">{fmt(p.avgHourly)}</Text>
+            </View>
+            <View style={colStyle(6)}>
+              <Text className="text-sm text-foreground text-right">{fmt(p.avgPerMile)}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
 
   return (
     <Card>
@@ -175,80 +235,13 @@ const PlatformAnalytics: React.FC<PlatformAnalyticsProps> = ({ selectedYear, ref
           </Alert>
         )}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View>
-            {/* Header row */}
-            <View className="flex-row border-b border-border pb-2">
-              {HEADERS.map((header, i) => (
-                <View key={header} style={{ width: COL_WIDTHS[i] }}>
-                  <Text
-                    className={`text-xs font-medium text-muted-foreground ${i > 0 ? "text-right" : ""}`}
-                  >
-                    {header}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Data rows */}
-            {platforms.map((p, i) => {
-              const isBest = i === 0 && platforms.length > 1;
-              const isWorst = i === platforms.length - 1 && platforms.length > 1;
-              return (
-                <View
-                  key={p.platform}
-                  className={`flex-row py-2 border-b border-border/50 items-center ${
-                    isBest ? "bg-green-500/10" : isWorst ? "bg-orange-500/10" : ""
-                  }`}
-                >
-                  <View style={{ width: COL_WIDTHS[0] }} className="flex-row items-center gap-1">
-                    <Text className="font-medium text-sm text-foreground" numberOfLines={1}>
-                      {p.platform}
-                    </Text>
-                    {isBest && (
-                      <Badge variant="default" className="bg-green-600 px-1">
-                        Best
-                      </Badge>
-                    )}
-                    {isWorst && (
-                      <Badge variant="secondary" className="bg-orange-500 px-1">
-                        Low
-                      </Badge>
-                    )}
-                  </View>
-                  <View style={{ width: COL_WIDTHS[1] }}>
-                    <Text className="text-sm text-foreground text-right">{p.totalShifts}</Text>
-                  </View>
-                  <View style={{ width: COL_WIDTHS[2] }}>
-                    <Text className="text-sm text-foreground text-right">
-                      {fmt(p.totalEarnings)}
-                    </Text>
-                  </View>
-                  <View style={{ width: COL_WIDTHS[3] }}>
-                    <Text className="text-sm text-foreground text-right">
-                      {fmtNum(p.totalHours)}
-                    </Text>
-                  </View>
-                  <View style={{ width: COL_WIDTHS[4] }}>
-                    <Text className="text-sm text-foreground text-right">
-                      {fmtNum(p.totalMiles, 0)}
-                    </Text>
-                  </View>
-                  <View style={{ width: COL_WIDTHS[5] }}>
-                    <Text className="text-sm font-semibold text-foreground text-right">
-                      {fmt(p.avgHourly)}
-                    </Text>
-                  </View>
-                  <View style={{ width: COL_WIDTHS[6] }}>
-                    <Text className="text-sm text-foreground text-right">
-                      {fmt(p.avgPerMile)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
+        {isWeb ? (
+          TableContent
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {TableContent}
+          </ScrollView>
+        )}
       </CardContent>
     </Card>
   );

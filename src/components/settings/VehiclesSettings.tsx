@@ -14,7 +14,9 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from "react-native";
+import { X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -142,124 +144,75 @@ const VehiclesSettings = () => {
       </Modal>
 
       {/* Add/Edit Vehicle Modal */}
-      {/* 🚩 FLAG: Dialog → Modal with KeyboardAvoidingView */}
       <Modal
         visible={isVehicleDialogOpen}
         transparent
-        animationType="slide"
+        animationType={Platform.OS === "web" ? "fade" : "slide"}
         onRequestClose={() => setIsVehicleDialogOpen(false)}
       >
         <TouchableWithoutFeedback onPress={() => setIsVehicleDialogOpen(false)}>
-          <View className="flex-1 bg-black/50 justify-end">
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: Platform.OS === "web" ? "center" : "flex-end", alignItems: Platform.OS === "web" ? "center" : "stretch", padding: Platform.OS === "web" ? 16 : 0 }}>
             <TouchableWithoutFeedback>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-              >
-                <View className="bg-background rounded-t-2xl border-t border-border">
-                  <View className="px-4 pt-4 pb-2 border-b border-border">
-                    <Text className="text-lg font-semibold text-foreground">
-                      {editingVehicle?.id ? 'Edit' : 'Add'} Vehicle
+              <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={Platform.OS === "web" ? { width: "100%", maxWidth: 480 } : {}}>
+                <View style={{
+                  backgroundColor: "white",
+                  borderRadius: Platform.OS === "web" ? 12 : 0,
+                  borderTopLeftRadius: Platform.OS === "web" ? 12 : 16,
+                  borderTopRightRadius: Platform.OS === "web" ? 12 : 16,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  overflow: "hidden",
+                }}>
+                  {/* Header */}
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+                    <Text style={{ fontSize: 18, fontWeight: "600", color: "#111827" }}>
+                      {editingVehicle?.id ? "Edit" : "Add"} Vehicle
                     </Text>
+                    <Pressable onPress={() => setIsVehicleDialogOpen(false)} style={{ padding: 4 }}>
+                      <X size={20} color="#6b7280" />
+                    </Pressable>
                   </View>
-                  <ScrollView className="max-h-[70vh] px-4" keyboardShouldPersistTaps="handled">
-                    <View style={{ paddingVertical: 16, gap: 16 }}>
-                      {/* Vehicle Name */}
+
+                  <ScrollView style={{ maxHeight: Platform.OS === "web" ? 480 : undefined }} keyboardShouldPersistTaps="handled">
+                    <View style={{ padding: 16, gap: 16 }}>
                       <View style={{ gap: 6 }}>
                         <Label>Vehicle Name</Label>
-                        <Input
-                          placeholder="e.g. My Car, Work Truck"
-                          value={editingVehicle?.name || ''}
-                          onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, name: text } : null)}
-                        />
+                        <Input placeholder="e.g. My Car, Work Truck" value={editingVehicle?.name || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, name: text } : null)} />
                       </View>
-
-                      {/* Make */}
                       <View style={{ gap: 6 }}>
                         <Label>Make</Label>
-                        <Input
-                          placeholder="e.g. Toyota, Ford"
-                          value={editingVehicle?.make || ''}
-                          onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, make: text } : null)}
-                        />
+                        <Input placeholder="e.g. Toyota, Ford" value={editingVehicle?.make || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, make: text } : null)} />
                       </View>
-
-                      {/* Model */}
                       <View style={{ gap: 6 }}>
                         <Label>Model</Label>
-                        <Input
-                          placeholder="e.g. Camry, F-150"
-                          value={editingVehicle?.model || ''}
-                          onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, model: text } : null)}
-                        />
+                        <Input placeholder="e.g. Camry, F-150" value={editingVehicle?.model || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, model: text } : null)} />
                       </View>
-
-                      {/* Year */}
                       <View style={{ gap: 6 }}>
                         <Label>Year</Label>
-                        <Input
-                          placeholder="e.g. 2022"
-                          keyboardType="numeric"
-                          value={editingVehicle?.year || ''}
-                          onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, year: text } : null)}
-                        />
+                        <Input placeholder="e.g. 2022" keyboardType="numeric" value={editingVehicle?.year || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, year: text } : null)} />
                       </View>
-
-                      {/* IRS Mileage Rate (read-only) */}
-                      <View style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: 12 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#166534', marginBottom: 2 }}>
-                          Mileage Rate
-                        </Text>
-                        <Text style={{ fontSize: 15, color: '#15803d', fontWeight: '700' }}>
-                          ${irsRate}/mile
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                          IRS standard rate for {taxYear} — applied automatically
-                        </Text>
+                      <View style={{ backgroundColor: "#f0fdf4", borderRadius: 8, padding: 12 }}>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#166534", marginBottom: 2 }}>Mileage Rate</Text>
+                        <Text style={{ fontSize: 15, color: "#15803d", fontWeight: "700" }}>${irsRate}/mile</Text>
+                        <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>IRS standard rate for {taxYear} — applied automatically</Text>
                       </View>
-
-                      {/* Start Year Mileage */}
                       <View style={{ gap: 6 }}>
                         <Label>Start of Year Mileage</Label>
-                        <Input
-                          keyboardType="numeric"
-                          placeholder="e.g. 45000"
-                          value={editingVehicle?.startYearMileage?.toString() || ''}
-                          onChangeText={(text) => setEditingVehicle(prev =>
-                            prev ? { ...prev, startYearMileage: text ? parseInt(text) : undefined } : null
-                          )}
-                        />
+                        <Input keyboardType="numeric" placeholder="e.g. 45000" value={editingVehicle?.startYearMileage?.toString() || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, startYearMileage: text ? parseInt(text) : undefined } : null)} />
                       </View>
-
-                      {/* End Year Mileage */}
                       <View style={{ gap: 6 }}>
                         <Label>End of Year Mileage</Label>
-                        <Input
-                          keyboardType="numeric"
-                          placeholder="e.g. 52000"
-                          value={editingVehicle?.endYearMileage?.toString() || ''}
-                          onChangeText={(text) => setEditingVehicle(prev =>
-                            prev ? { ...prev, endYearMileage: text ? parseInt(text) : undefined } : null
-                          )}
-                        />
+                        <Input keyboardType="numeric" placeholder="e.g. 52000" value={editingVehicle?.endYearMileage?.toString() || ""} onChangeText={(text) => setEditingVehicle(prev => prev ? { ...prev, endYearMileage: text ? parseInt(text) : undefined } : null)} />
                       </View>
-
-                      {/* Is Default */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 4 }}>
                         <Label>Set as default vehicle</Label>
-                        <Switch
-                          checked={editingVehicle?.isDefault || false}
-                          onCheckedChange={(checked) => setEditingVehicle(prev =>
-                            prev ? { ...prev, isDefault: checked } : null
-                          )}
-                        />
+                        <Switch checked={editingVehicle?.isDefault || false} onCheckedChange={(checked) => setEditingVehicle(prev => prev ? { ...prev, isDefault: checked } : null)} />
                       </View>
                     </View>
                   </ScrollView>
 
-                  <View className="flex-row justify-end gap-2 px-4 border-t border-border" style={{ paddingTop: 12, paddingBottom: insets.bottom + 12 }}>
-                    <Button variant="outline" onPress={() => setIsVehicleDialogOpen(false)}>
-                      Cancel
-                    </Button>
+                  <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Platform.OS === "web" ? 16 : insets.bottom + 12, borderTopWidth: 1, borderTopColor: "#e5e7eb" }}>
+                    <Button variant="outline" onPress={() => setIsVehicleDialogOpen(false)}>Cancel</Button>
                     <Button onPress={handleSaveVehicle}>Save Vehicle</Button>
                   </View>
                 </View>
