@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.brendenwarn.shifttracker",
-      "buildNumber": "52",
+      "buildNumber": "54",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -33,7 +33,7 @@
     },
     "android": {
       "package": "com.shifttracker.app",
-      "versionCode": 62,
+      "versionCode": 64,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
