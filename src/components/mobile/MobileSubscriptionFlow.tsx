@@ -8,7 +8,7 @@ import { useSubscription } from '@/context/SubscriptionContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 
-const RC_WEB_BILLING_URL = 'https://pay.rev.cat/crejzhnbemgrbtno/';
+const RC_WEB_BILLING_URL = 'https://pay.rev.cat/crejzhnbemgrbtno';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +63,7 @@ const MobileSubscriptionFlow = () => {
       const url = user?.id
         ? `${RC_WEB_BILLING_URL}?app_user_id=${encodeURIComponent(user.id)}`
         : RC_WEB_BILLING_URL;
-      await Linking.openURL(url);
+      Linking.openURL(url);
       return;
     }
     await purchaseSubscription(selectedBilling);
