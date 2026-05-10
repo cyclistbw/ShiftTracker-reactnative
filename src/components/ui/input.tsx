@@ -11,7 +11,8 @@ export interface InputProps extends TextInputProps {
 export const Input = React.forwardRef<TextInput, InputProps>(
   ({ className, placeholderTextColor, style, onChangeText, autofillColor, ...props }, ref) => {
     const { isDark, colors } = useTheme();
-    const autofillBg = autofillColor ?? (isDark ? "#1e293b" : "#f9fafb");
+    // In dark mode always use a dark background — ignore any light autofillColor passed by callers
+    const autofillBg = isDark ? "#1e293b" : (autofillColor ?? "#f9fafb");
     const [bgKey, setBgKey] = React.useState(0);
     const prevLenRef = React.useRef(0);
 
