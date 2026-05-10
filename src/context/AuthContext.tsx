@@ -99,38 +99,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) { setSession(session); setUser(session?.user ?? null); setIsPasswordRecovery(true); setIsLoading(false); }
         return;
       }
-      // On fresh login (new JWT), PostgREST/PgBouncer takes 15–20 s server-side
-      // to warm up connection context for the new token.  Pre-warm here — before
-      // calling setUser — so that when data hooks fire they hit a warm server and
-      // complete in 1–2 s instead of hanging indefinitely.
-      // Navigation stays on the loading screen (isLoading=true) during warm-up.
+      // On fresh login, navigate to the app immediately — don't block on the
+      // PostgREST/PgBouncer warm-up which can take 15–20 s on cold server starts.
+      // The warm-up fires in the background so that by the time the user taps
+      // to another tab the connection is already warm.
       if (event === 'SIGNED_IN' && session?.user) {
-        setIsLoading(true);
         setSession(session);
-        let warmedUp = false;
-        try {
-          await Promise.race([
-            supabase
-              .from('user_profile')
-              .select('user_id')
-              .eq('user_id', session.user.id)
-              .limit(1)
-              .maybeSingle()
-              .then(() => { warmedUp = true; }),
-            new Promise<void>((resolve) => setTimeout(resolve, 22000)),
-          ]);
-        } catch (_) {}
-        if (!warmedUp && mounted) {
-          // Server didn't respond in 22s — all user data is safe in Supabase.
-          // Clear stale local auth/cache state so the next login attempt starts
-          // clean (OkHttp pool reset, fresh JWT). User lands on login screen.
-          await clearStaleSession();
-          setSession(null);
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
         if (mounted) { setUser(session.user); setIsLoading(false); }
+        supabase
+          .from('user_profile')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .limit(1)
+          .maybeSingle()
+          .catch(() => {});
         return;
       }
       setSession(session);
@@ -220,30 +202,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const storageItem = verifierKey ? await AsyncStorage.getItem(verifierKey) : null;
           const cleaned = storageItem?.replace(/^"|"$/g, "") ?? "";
           const [codeVerifier, redirectType] = cleaned.split("/");
+          const isRecoveryLink = redirectType === "PASSWORD_RECOVERY";
+          const errorTitle = isRecoveryLink ? "Reset link error" : "Verification error";
           if (!codeVerifier) {
-            Alert.alert("Reset link error", "Missing PKCE verifier — please request a new password reset email.");
+            Alert.alert(errorTitle, isRecoveryLink
+              ? "Missing PKCE verifier — please request a new password reset email."
+              : "Missing verification token — please try clicking the confirmation link again.");
             return;
           }
           try {
-            const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 15000);
-            const res = await fetch(
-              `${SUPABASE_URL}/auth/v1/token?grant_type=pkce`,
-              {
-                method: "POST",
-                headers: {
-                  apikey: SUPABASE_ANON_KEY,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ auth_code: authCode, code_verifier: codeVerifier }),
-                signal: ctrl.signal,
-              }
-            );
-            clearTimeout(timer);
+            // Avoid AbortController.signal — Hermes's AbortSignal.addEventListener
+            // is incomplete on some Android versions and throws "undefined is not a
+            // function" inside the RN fetch polyfill. Use Promise.race instead.
+            const res = await Promise.race([
+              fetch(
+                `${SUPABASE_URL}/auth/v1/token?grant_type=pkce`,
+                {
+                  method: "POST",
+                  headers: {
+                    apikey: SUPABASE_ANON_KEY,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ auth_code: authCode, code_verifier: codeVerifier }),
+                }
+              ),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Request timed out")), 15000)
+              ),
+            ]);
             const json = await res.json();
             if (!res.ok || !json?.access_token || !json?.refresh_token) {
+              // The Supabase SDK may have already exchanged this single-use code via
+              // getSession() on cold start (both signup confirmation and password reset).
+              // If a session exists, onAuthStateChange already handled everything — silently succeed.
+              const { data: { session: s } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+              if (s?.user) return;
               Alert.alert(
-                "Reset link error",
+                errorTitle,
                 json?.error_description || json?.msg || `Status ${res.status}`
               );
               return;
@@ -253,7 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Password screen immediately — don't wait on setSession (its
             // internal lock can hang on iOS the same way exchangeCodeForSession
             // does, and the user shouldn't see the login screen in the meantime).
-            if (redirectType === "PASSWORD_RECOVERY") {
+            if (isRecoveryLink) {
               setIsPasswordRecovery(true);
             }
             // setSession in the background with an 8s ceiling — by the time the
@@ -266,7 +261,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               new Promise((resolve) => setTimeout(resolve, 8000)),
             ]);
           } catch (e: any) {
-            Alert.alert("Reset link error", `Network error: ${e?.message || String(e)}`);
+            // Same silent-success check for both signup and reset links.
+            const { data: { session: s } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+            if (s?.user) return;
+            Alert.alert(errorTitle, `Network error: ${e?.message || String(e)}`);
           }
           return;
         }

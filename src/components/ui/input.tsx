@@ -15,15 +15,19 @@ export const Input = React.forwardRef<TextInput, InputProps>(
     const [bgKey, setBgKey] = React.useState(0);
     const prevLenRef = React.useRef(0);
 
+    // Sync prevLenRef with the controlled value on every render so delta
+    // detection is correct from the very first keystroke. Without this,
+    // a pre-populated field (e.g. "12345") has prevLenRef=0, so the first
+    // backspace produces delta=4 and falsely triggers a remount → keyboard dismiss.
+    prevLenRef.current = (props.value ?? "").length;
+
     const handleChangeText = React.useCallback(
       (text: string) => {
         // Only remount (to clear Samsung Pass yellow tint) when autofill is
         // detected — i.e. text jumped by more than 1 char at once.
-        // Remounting on every keystroke causes focus loss → keyboard dismissal.
         if (Platform.OS === "android") {
           const delta = Math.abs(text.length - prevLenRef.current);
           if (delta > 1) setBgKey((k) => k + 1);
-          prevLenRef.current = text.length;
         }
         onChangeText?.(text);
       },

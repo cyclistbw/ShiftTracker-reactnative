@@ -29,7 +29,7 @@ export const linking: LinkingOptions<any> = {
         },
       },
       Analytics: "analytics",
-      MobileSubscription: "mobile-subscription",
+      MobileSubscription: "subscription",
       MobilePrivacy: "privacy",
       MobileTerms: "terms",
       PurchaseSuccess: "success",

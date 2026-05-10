@@ -5,7 +5,10 @@ import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Linking, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSubscription } from '@/context/SubscriptionContext';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+
+const RC_WEB_BILLING_URL = 'https://pay.rev.cat/crejzhnbemgrbtno/';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +50,7 @@ const MobileSubscriptionFlow = () => {
     purchaseSubscription,
     restorePurchases,
   } = useSubscription();
+  const { user } = useAuth();
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [selectedBilling, setSelectedBilling] = useState<'monthly' | 'annual'>('annual');
 
@@ -55,6 +59,13 @@ const MobileSubscriptionFlow = () => {
   }, [checkSubscription]);
 
   const handleUpgrade = async () => {
+    if (Platform.OS === 'web') {
+      const url = user?.id
+        ? `${RC_WEB_BILLING_URL}?app_user_id=${encodeURIComponent(user.id)}`
+        : RC_WEB_BILLING_URL;
+      await Linking.openURL(url);
+      return;
+    }
     await purchaseSubscription(selectedBilling);
   };
 
@@ -70,8 +81,8 @@ const MobileSubscriptionFlow = () => {
   const toggleBg = isDark ? '#1f2937' : '#f3f4f6';
 
   return (
-    <ScrollView className="flex-1">
-      <View style={{ gap: 20, padding: 16 }}>
+    <ScrollView className="flex-1" contentContainerStyle={Platform.OS === 'web' ? { alignItems: 'center' } : undefined}>
+      <View style={[{ gap: 20, padding: 16 }, Platform.OS === 'web' && { width: '100%', maxWidth: 768 }]}>
         {/* Header */}
         <View style={{ alignItems: 'center', gap: 6 }}>
           <Text className="text-2xl font-bold text-foreground">Choose Your Plan</Text>
