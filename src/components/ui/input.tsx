@@ -10,7 +10,7 @@ export interface InputProps extends TextInputProps {
 
 export const Input = React.forwardRef<TextInput, InputProps>(
   ({ className, placeholderTextColor, style, onChangeText, autofillColor, ...props }, ref) => {
-    const { isDark } = useTheme();
+    const { isDark, colors } = useTheme();
     const autofillBg = autofillColor ?? (isDark ? "#1e293b" : "#f9fafb");
     const [bgKey, setBgKey] = React.useState(0);
     const prevLenRef = React.useRef(0);
@@ -45,7 +45,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
             props.editable === false && "opacity-50",
             className
           )}
-          style={[{ backgroundColor: autofillBg }, style]}
+          style={[{ backgroundColor: autofillBg, color: colors.foreground }, style]}
           placeholderTextColor={placeholderTextColor ?? "#9ca3af"}
           onChangeText={handleChangeText}
           {...props}
